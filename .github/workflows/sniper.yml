@@ -1,0 +1,56 @@
+name: ⚡️ Mintobaby High-Speed NFT Sniper
+
+on:
+  repository_dispatch:
+    types: [trigger-mint]
+
+jobs:
+  snipe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Cache deps — cuts cold-boot from ~15s to ~3s
+      - name: Cache Node Modules
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install Dependencies
+        run: npm ci 2>/dev/null || npm install ethers
+
+      - name: ⚡️ Run Lightning Sniper Loop
+        env:
+          # ── Secrets (stored in GitHub repo Settings → Secrets) ──────────────
+          ENCRYPTION_SECRET: ${{ secrets.ENCRYPTION_SECRET }}
+          TG_TOKEN:          ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT_ID:        ${{ secrets.TELEGRAM_CHAT_ID }}
+          EXECUTOR_ADDR:     ${{ secrets.EXECUTOR_ADDRESS }}
+
+          # ── Per-user encrypted wallet (passed from Cloudflare Worker) ────────
+          ENC_KEY:           ${{ github.event.client_payload.enc_key }}
+          ENC_IV:            ${{ github.event.client_payload.enc_iv }}
+          ENC_TAG:           ${{ github.event.client_payload.enc_tag }}
+          RECIPIENT:         ${{ github.event.client_payload.recipient }}
+
+          # ── Mint parameters ──────────────────────────────────────────────────
+          NFT_CONTRACT:      ${{ github.event.client_payload.nft_contract }}
+          MINT_TIME:         ${{ github.event.client_payload.mint_time }}
+          QUANTITY:          ${{ github.event.client_payload.quantity }}
+          ETH_VALUE:         ${{ github.event.client_payload.eth_value }}
+          EXPECTED_NONCE:    ${{ github.event.client_payload.expected_nonce }}
+          PHASE_HASH:        ${{ github.event.client_payload.phase_hash }}
+          DEADLINE:          ${{ github.event.client_payload.deadline }}
+          ADAPTER:           ${{ github.event.client_payload.adapter }}
+        run: node sniper_loop.js
