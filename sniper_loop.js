@@ -11,7 +11,7 @@
  *   ENCRYPTION_SECRET  — Same value as your Cloudflare Worker ENCRYPTION_SECRET
  *   TELEGRAM_BOT_TOKEN — Your Telegram bot token
  *   TELEGRAM_CHAT_ID   — Your Telegram user ID
- *   EXECUTOR_ADDRESS   — Deployed AutoMintExecutor contract address
+ *   EXECUTOR_ADDRESS   — Deployed AutoMintExecutor contract address (optional)
  *
  * Injected by the workflow from client_payload:
  *   ENC_KEY, ENC_IV, ENC_TAG  — User's encrypted wallet data
@@ -33,9 +33,21 @@ const EXECUTOR_ABI = [
   'function executeMintTo(address target, address recipient, uint256 quantity, uint256 value, uint256 deadline, uint256 expectedNonce, bytes32 phaseHash) external payable returns (bytes32 intentHash)',
 ];
 
+const DIRECT_MINT_CANDIDATES = [
+  { name: 'mintTo(address,uint256)', sig: 'mintTo(address,uint256)', args: (r, q) => [r, q] },
+  { name: 'mint(uint256)', sig: 'mint(uint256)', args: (r, q) => [q] },
+  { name: 'mint(address,uint256)', sig: 'mint(address,uint256)', args: (r, q) => [r, q] },
+  { name: 'publicMint(address,uint256)', sig: 'publicMint(address,uint256)', args: (r, q) => [r, q] },
+  { name: 'publicMint(uint256)', sig: 'publicMint(uint256)', args: (r, q) => [q] },
+  { name: 'mintPublic(uint256)', sig: 'mintPublic(uint256)', args: (r, q) => [q] },
+  { name: 'mintPublic(address,uint256)', sig: 'mintPublic(address,uint256)', args: (r, q) => [r, q] },
+  { name: 'claim(address,uint256)', sig: 'claim(address,uint256)', args: (r, q) => [r, q] },
+  { name: 'purchase(uint256)', sig: 'purchase(uint256)', args: (r, q) => [q] },
+  { name: 'mint()', sig: 'mint()', args: () => [] }
+];
+
 // ─── Decrypt user's wallet key ────────────────────────────────────────────────
 function decryptPrivateKey(encryptedKey, ivHex, tagHex, secret) {
-  // Derive a 32-byte key from the secret (same method as crypto-store.ts)
   const keyBuf = crypto.createHash('sha256').update(secret).digest();
   const iv     = Buffer.from(ivHex,  'hex');
   const tag    = Buffer.from(tagHex, 'hex');
@@ -73,30 +85,31 @@ function sleep(ms) {
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
-async function startSniper() {
-  // --- Read environment ---
+async function main() {
   const encryptionSecret = process.env.ENCRYPTION_SECRET;
   const encKey           = process.env.ENC_KEY;
   const encIv            = process.env.ENC_IV;
   const encTag           = process.env.ENC_TAG;
   const recipient        = process.env.RECIPIENT;
-  const executorAddr     = process.env.EXECUTOR_ADDR;
   const nftContract      = process.env.NFT_CONTRACT;
-  const mintTimeSec      = parseInt(process.env.MINT_TIME,      10);
-  const quantity         = Math.max(1, parseInt(process.env.QUANTITY, 10) || 1);
-  const ethValue         = process.env.ETH_VALUE      || '0';
-  const expectedNonce    = parseInt(process.env.EXPECTED_NONCE, 10);
-  const phaseHash        = process.env.PHASE_HASH     || ('0x' + '00'.repeat(32));
-  const deadline         = parseInt(process.env.DEADLINE,       10);
+  const mintTimeSec      = parseInt(process.env.MINT_TIME, 10);
+  const quantity         = process.env.QUANTITY || '1';
+  const ethValue         = process.env.ETH_VALUE || '0';
+  const expectedNonce    = process.env.EXPECTED_NONCE || '0';
+  const phaseHash        = process.env.PHASE_HASH || ('0x' + '00'.repeat(32));
+  const deadline         = process.env.DEADLINE || String(mintTimeSec + 120);
+  const executorAddr     = process.env.EXECUTOR_ADDRESS;
 
-  // --- Validate ---
-  if (!encryptionSecret) { console.error('❌ ENCRYPTION_SECRET missing'); process.exit(1); }
-  if (!encKey || !encIv || !encTag) { console.error('❌ Encrypted wallet data missing (ENC_KEY/ENC_IV/ENC_TAG)'); process.exit(1); }
-  if (!executorAddr)  { console.error('❌ EXECUTOR_ADDR missing');  process.exit(1); }
-  if (!nftContract)   { console.error('❌ NFT_CONTRACT missing');   process.exit(1); }
-  if (!mintTimeSec)   { console.error('❌ MINT_TIME missing/zero'); process.exit(1); }
+  if (!encryptionSecret || !encKey || !encIv || !encTag) {
+    console.error('❌ Missing encrypted wallet payload or ENCRYPTION_SECRET.');
+    process.exit(1);
+  }
 
-  // --- Decrypt this user's private key ---
+  if (!nftContract || isNaN(mintTimeSec)) {
+    console.error('❌ Missing NFT_CONTRACT or MINT_TIME.');
+    process.exit(1);
+  }
+
   let privateKey;
   try {
     privateKey = decryptPrivateKey(encKey, encIv, encTag, encryptionSecret);
@@ -117,7 +130,6 @@ async function startSniper() {
   const wallet   = new ethers.Wallet(privateKey, provider);
   const valueWei = ethers.parseEther(ethValue);
 
-  // Verify decrypted key matches the expected recipient address
   if (recipient && wallet.address.toLowerCase() !== recipient.toLowerCase()) {
     const errMsg = `Decrypted wallet (${wallet.address}) does not match expected recipient (${recipient})`;
     console.error('❌', errMsg);
@@ -133,11 +145,7 @@ async function startSniper() {
   console.log(`⏰  Mint Time    : ${new Date(mintTimeMs).toISOString()} (unix: ${mintTimeSec})`);
   console.log(`📦  Quantity     : ${quantity}`);
   console.log(`💎  ETH Value    : ${ethValue} ETH`);
-  console.log(`🔁  Nonce        : ${expectedNonce}`);
   console.log('───────────────────────────────────────────────────');
-
-  // Pre-build contract in memory
-  const executor = new ethers.Contract(executorAddr, EXECUTOR_ABI, wallet);
 
   await tgNotify(
     `⚡️ <b>GitHub Sniper ARMED</b>\n\n` +
@@ -147,7 +155,7 @@ async function startSniper() {
     `• Quantity: <b>${quantity}</b> | Value: <b>${ethValue} ETH</b>`
   );
 
-  // ─── PHASE 1: Slow sleep until T-10s ─────────────────────────────────────
+  // ─── PHASE 1: Sleep until T-10s ──────────────────────────────────────────
   const nowMs         = Date.now();
   const msUntilLaunch = mintTimeMs - nowMs;
 
@@ -157,7 +165,6 @@ async function startSniper() {
     await sleep(sleepMs);
   }
 
-  // Warm up RPC connection so no TCP handshake delay at fire time
   try {
     const block = await provider.getBlockNumber();
     console.log(`🌐  RPC warm-up OK — current block: ${block}`);
@@ -167,7 +174,7 @@ async function startSniper() {
 
   console.log('🔥  Entering ultra-fast 50ms strike loop...');
 
-  // ─── PHASE 2: 50ms clock-hammer loop ─────────────────────────────────────
+  // ─── PHASE 2: Strike loop ─────────────────────────────────────────────────
   let fired = false;
 
   while (!fired) {
@@ -177,31 +184,65 @@ async function startSniper() {
       const fireTs = new Date().toISOString();
       console.log(`\n🚀  MINT OPEN! Firing at ${fireTs}`);
 
-      try {
-        // executeMintToByRecipient: msg.sender == recipient enforced by contract
-        const tx = await executor.executeMintToByRecipient(
-          nftContract,
-          wallet.address,
-          BigInt(quantity),
-          valueWei,
-          BigInt(deadline),
-          BigInt(expectedNonce),
-          phaseHash,
-          { value: valueWei }
-        );
+      let tx;
+      let usedMethod = 'AutoMintExecutor';
 
+      // 1. Try AutoMintExecutor if configured
+      if (executorAddr && executorAddr.startsWith('0x') && executorAddr.length === 42) {
+        try {
+          const executor = new ethers.Contract(executorAddr, EXECUTOR_ABI, wallet);
+          tx = await executor.executeMintToByRecipient(
+            nftContract,
+            wallet.address,
+            BigInt(quantity),
+            valueWei,
+            BigInt(deadline),
+            BigInt(expectedNonce),
+            phaseHash,
+            { value: valueWei }
+          );
+        } catch (e) {
+          console.warn(`[SNIPER] AutoMintExecutor failed (${e.message}). Falling back to direct-wallet execution...`);
+        }
+      }
+
+      // 2. Direct-wallet execution fallback
+      if (!tx) {
+        for (const candidate of DIRECT_MINT_CANDIDATES) {
+          try {
+            const contract = new ethers.Contract(nftContract, [`function ${candidate.sig}`], wallet);
+            const args = candidate.args(wallet.address, BigInt(quantity));
+            const fnName = candidate.name.split('(')[0];
+            tx = await contract[fnName](...args, { value: valueWei });
+            usedMethod = candidate.name;
+            console.log(`[SNIPER] Successfully dispatched direct mint via ${candidate.name}`);
+            break;
+          } catch (candErr) {
+            // Try next signature
+          }
+        }
+      }
+
+      if (!tx) {
+        const failMsg = `All executor and direct mint methods failed to dispatch.`;
+        console.error(`❌ ${failMsg}`);
+        await tgNotify(`❌ <b>Mint TX Failed</b>\n\n• Contract: <code>${nftContract}</code>\n• Error: <i>${failMsg}</i>`);
+        process.exit(1);
+      }
+
+      try {
         fired = true;
-        console.log(`📡  TX Broadcast! Hash: ${tx.hash}`);
+        console.log(`📡  TX Broadcast! Hash: ${tx.hash} (method: ${usedMethod})`);
 
         await tgNotify(
           `📡 <b>AUTO-MINT TX SENT!</b>\n\n` +
           `• Wallet: <code>${wallet.address}</code>\n` +
+          `• Method: <code>${usedMethod}</code>\n` +
           `• Hash: <code>${tx.hash}</code>\n` +
           `• <a href="${BLOCKSCOUT}/tx/${tx.hash}">View on Blockscout</a>\n` +
           `• Status: ⏳ Awaiting confirmation...`
         );
 
-        // Wait for on-chain confirmation
         console.log('⏳  Waiting for on-chain confirmation...');
         const receipt = await tx.wait();
 
@@ -240,7 +281,6 @@ async function startSniper() {
         process.exit(1);
       }
     } else {
-      // Not time yet — wait 50ms and check again
       await sleep(50);
     }
   }
@@ -249,10 +289,8 @@ async function startSniper() {
   process.exit(0);
 }
 
-// ─── Entry point ──────────────────────────────────────────────────────────────
-startSniper().catch(async (err) => {
-  const msg = err instanceof Error ? err.message : String(err);
-  console.error('💀  Fatal error:', msg);
-  await tgNotify(`💀 <b>Sniper Fatal Error</b>\n\n<i>${msg}</i>`).catch(() => {});
+main().catch(async (err) => {
+  console.error('Fatal error:', err);
+  await tgNotify(`❌ <b>Sniper Crash:</b> <i>${err.message || String(err)}</i>`);
   process.exit(1);
 });

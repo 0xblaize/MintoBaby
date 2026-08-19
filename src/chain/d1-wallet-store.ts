@@ -2,6 +2,7 @@ import { MemoryStore, type AccessEntitlement, type EncryptedWalletData, type Sto
 import type { UserState } from '../telegram/commands.js';
 
 type TargetRow = {
+  user_id?: string;
   contract_address: string;
   schema_id: string;
   price_per_nft: string;
@@ -11,6 +12,7 @@ type TargetRow = {
   approval_status?: string | null;
   execution_status?: string | null;
   tx_hash?: string | null;
+  updated_at?: string | null;
 };
 
 export interface D1DatabaseLike {
@@ -64,7 +66,7 @@ export class D1WalletStore extends MemoryStore {
           )`).bind().run();
 
           await this.db.prepare(`CREATE TABLE IF NOT EXISTS target_profiles (
-            user_id TEXT PRIMARY KEY NOT NULL,
+            user_id TEXT NOT NULL,
             contract_address TEXT NOT NULL,
             schema_id TEXT NOT NULL,
             price_per_nft TEXT NOT NULL,
@@ -74,8 +76,10 @@ export class D1WalletStore extends MemoryStore {
             approval_status TEXT NOT NULL DEFAULT 'none',
             execution_status TEXT NOT NULL DEFAULT 'ready',
             tx_hash TEXT,
-            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            PRIMARY KEY (user_id, contract_address)
           )`).bind().run();
+
           await this.db.prepare("ALTER TABLE target_profiles ADD COLUMN approval_status TEXT NOT NULL DEFAULT 'none'").bind().run().catch(() => {});
           await this.db.prepare("ALTER TABLE target_profiles ADD COLUMN execution_status TEXT NOT NULL DEFAULT 'ready'").bind().run().catch(() => {});
           await this.db.prepare("ALTER TABLE target_profiles ADD COLUMN tx_hash TEXT").bind().run().catch(() => {});
@@ -114,16 +118,19 @@ export class D1WalletStore extends MemoryStore {
             user_id TEXT NOT NULL,
             status TEXT NOT NULL,
             block_number TEXT NOT NULL,
-            created_at INTEGER NOT NULL,
-            UNIQUE(chain_id, tx_hash, asset, log_index)
+            created_at INTEGER NOT NULL
           )`).bind().run();
-          await this.db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_user_identities_username ON user_identities(username) WHERE username IS NOT NULL`).bind().run();
+
+          // Create indices for fast lookup
+          await this.db.prepare('CREATE INDEX IF NOT EXISTS idx_target_profiles_active ON target_profiles(verified, approval_status, execution_status)').bind().run().catch(() => {});
+          await this.db.prepare('CREATE INDEX IF NOT EXISTS idx_target_profiles_user ON target_profiles(user_id)').bind().run().catch(() => {});
+          await this.db.prepare('CREATE INDEX IF NOT EXISTS idx_access_payments_lookup ON access_payments(chain_id, tx_hash, log_index)').bind().run().catch(() => {});
         } catch (e) {
-          console.error('D1 schema init error:', e);
+          console.error('Failed to initialize database tables:', e);
         }
       })();
     }
-    return this.schemaInitPromise;
+    await this.schemaInitPromise;
   }
 
   async saveEncryptedWallet(userId: string, wallet: EncryptedWalletData): Promise<void> {
@@ -137,6 +144,7 @@ export class D1WalletStore extends MemoryStore {
           encrypted_key = excluded.encrypted_key,
           iv = excluded.iv,
           tag = excluded.tag,
+          created_at = excluded.created_at,
           updated_at = excluded.updated_at`)
         .bind(userId, wallet.address.toLowerCase(), wallet.encryptedKey, wallet.iv, wallet.tag, wallet.createdAt).run();
     } catch (e) {
@@ -169,38 +177,45 @@ export class D1WalletStore extends MemoryStore {
   }
 
   async stageTarget(userId: string, address: string, schemaId: string, pricePerNft: bigint, isLive: boolean, metadata?: Record<string, string | undefined>): Promise<void> {
+    const normAddr = address.toLowerCase();
     super.stageTarget(userId, address, schemaId, pricePerNft, isLive, metadata);
     try {
       await this.ensureAllTables();
       const approvalStatus = metadata?.approvalStatus ?? 'none';
       const executionStatus = metadata?.executionStatus ?? 'ready';
       const txHash = metadata?.txHash ?? null;
+
+      // Delete previous entry for this (user_id, contract_address) to be 100% compatible across table revisions
+      await this.db.prepare('DELETE FROM target_profiles WHERE user_id = ? AND LOWER(contract_address) = ?')
+        .bind(userId, normAddr).run().catch(() => {});
+
       await this.db.prepare(`INSERT INTO target_profiles(user_id, contract_address, schema_id, price_per_nft, is_live, verified, metadata_json, approval_status, execution_status, tx_hash, updated_at)
-        VALUES(?, ?, ?, ?, ?, 0, ?, ?, ?, ?, datetime('now'))
-        ON CONFLICT(user_id) DO UPDATE SET
-          contract_address = excluded.contract_address,
-          schema_id = excluded.schema_id,
-          price_per_nft = excluded.price_per_nft,
-          is_live = excluded.is_live,
-          verified = 0,
-          metadata_json = excluded.metadata_json,
-          approval_status = excluded.approval_status,
-          execution_status = excluded.execution_status,
-          tx_hash = excluded.tx_hash,
-          updated_at = excluded.updated_at`)
-        .bind(userId, address.toLowerCase(), schemaId, pricePerNft.toString(), isLive ? 1 : 0, JSON.stringify(metadata ?? {}), approvalStatus, executionStatus, txHash).run();
+        VALUES(?, ?, ?, ?, ?, 0, ?, ?, ?, ?, datetime('now'))`)
+        .bind(userId, normAddr, schemaId, pricePerNft.toString(), isLive ? 1 : 0, JSON.stringify(metadata ?? {}), approvalStatus, executionStatus, txHash).run()
+        .catch(async () => {
+          await this.db.prepare('DELETE FROM target_profiles WHERE user_id = ?').bind(userId).run().catch(() => {});
+          await this.db.prepare(`INSERT INTO target_profiles(user_id, contract_address, schema_id, price_per_nft, is_live, verified, metadata_json, approval_status, execution_status, tx_hash, updated_at)
+            VALUES(?, ?, ?, ?, ?, 0, ?, ?, ?, ?, datetime('now'))`)
+            .bind(userId, normAddr, schemaId, pricePerNft.toString(), isLive ? 1 : 0, JSON.stringify(metadata ?? {}), approvalStatus, executionStatus, txHash).run();
+        });
     } catch (e) {
       console.error('Error staging target in D1:', e);
     }
   }
 
-  async getTarget(userId: string): Promise<{ contractAddress: string; schemaId: string; pricePerNft: bigint; isLive: boolean; verified: boolean; metadata?: Record<string, string | undefined> } | undefined> {
+  async getTarget(userId: string, contractAddress?: string): Promise<StoredTarget | undefined> {
     try {
       await this.ensureAllTables();
-      const row = await this.db.prepare('SELECT contract_address, schema_id, price_per_nft, is_live, verified, metadata_json, approval_status, execution_status, tx_hash FROM target_profiles WHERE user_id = ?').bind(userId).first<TargetRow>();
+      let row: TargetRow | null = null;
+      if (contractAddress) {
+        row = await this.db.prepare('SELECT contract_address, schema_id, price_per_nft, is_live, verified, metadata_json, approval_status, execution_status, tx_hash FROM target_profiles WHERE user_id = ? AND LOWER(contract_address) = ?')
+          .bind(userId, contractAddress.toLowerCase()).first<TargetRow>();
+      } else {
+        row = await this.db.prepare('SELECT contract_address, schema_id, price_per_nft, is_live, verified, metadata_json, approval_status, execution_status, tx_hash FROM target_profiles WHERE user_id = ? ORDER BY updated_at DESC LIMIT 1')
+          .bind(userId).first<TargetRow>();
+      }
       if (!row) {
-        super.removeTarget(userId);
-        return undefined;
+        return super.getTarget(userId, contractAddress);
       }
       let metadata: Record<string, string | undefined> | undefined;
       try { metadata = row.metadata_json ? JSON.parse(row.metadata_json) as Record<string, string | undefined> : undefined; } catch { metadata = undefined; }
@@ -210,40 +225,76 @@ export class D1WalletStore extends MemoryStore {
       if (res.verified && res.metadata?.approvalStatus === 'approved' && res.metadata.executionStatus === 'ready') {
         const pendingMetadata = { ...(res.metadata ?? {}), approvalStatus: 'pending' };
         super.stageTarget(userId, res.contractAddress, res.schemaId, res.pricePerNft, res.isLive, pendingMetadata);
-        super.confirmTarget(userId);
+        super.confirmTarget(userId, res.contractAddress);
       }
       return res;
     } catch (e) {
       console.error('Error loading target from D1:', e);
-      return await super.getTarget(userId);
+      return super.getTarget(userId, contractAddress);
     }
   }
 
-  async confirmTarget(userId: string): Promise<boolean> {
-    const target = await super.getTarget(userId);
+  async getUserTargets(userId: string): Promise<Array<StoredTarget>> {
+    try {
+      await this.ensureAllTables();
+      const rows = (await this.db.prepare("SELECT contract_address, schema_id, price_per_nft, is_live, verified, metadata_json, approval_status, execution_status, tx_hash FROM target_profiles WHERE user_id = ? ORDER BY updated_at DESC")
+        .bind(userId).all<TargetRow>()).results || [];
+      return rows.map(r => {
+        let metadata: Record<string, string | undefined> | undefined;
+        try { metadata = r.metadata_json ? JSON.parse(r.metadata_json) : undefined; } catch {}
+        metadata = { ...(metadata ?? {}), approvalStatus: r.approval_status ?? metadata?.approvalStatus ?? 'none', executionStatus: r.execution_status ?? metadata?.executionStatus ?? 'ready' };
+        return {
+          contractAddress: r.contract_address,
+          schemaId: r.schema_id,
+          pricePerNft: BigInt(r.price_per_nft),
+          isLive: r.is_live === 1,
+          verified: r.verified === 1,
+          metadata
+        };
+      });
+    } catch {
+      return super.getUserTargets(userId);
+    }
+  }
+
+  async confirmTarget(userId: string, contractAddress?: string): Promise<boolean> {
+    const target = await this.getTarget(userId, contractAddress);
     if (!target || target.metadata?.approvalStatus !== 'pending') return false;
     try {
       await this.ensureAllTables();
       const metadata = { ...(target.metadata ?? {}), approvalStatus: 'approved', executionStatus: 'ready' };
-      const result = await this.db.prepare("UPDATE target_profiles SET verified = 1, approval_status = 'approved', execution_status = 'ready', metadata_json = ?, updated_at = datetime('now') WHERE user_id = ? AND verified = 0 AND approval_status = 'pending' RETURNING user_id").bind(JSON.stringify(metadata), userId).first<{ user_id: string }>();
-      if (!result) return false;
-      return super.confirmTarget(userId);
+      const normAddr = target.contractAddress.toLowerCase();
+      
+      await this.db.prepare("UPDATE target_profiles SET verified = 1, approval_status = 'approved', execution_status = 'ready', metadata_json = ?, updated_at = datetime('now') WHERE user_id = ? AND LOWER(contract_address) = ?")
+        .bind(JSON.stringify(metadata), userId, normAddr).run()
+        .catch(async () => {
+          await this.db.prepare("UPDATE target_profiles SET verified = 1, approval_status = 'approved', execution_status = 'ready', metadata_json = ?, updated_at = datetime('now') WHERE user_id = ?")
+            .bind(JSON.stringify(metadata), userId).run();
+        });
+
+      super.confirmTarget(userId, target.contractAddress);
+      return true;
     } catch (e) {
       console.error('Error confirming target in D1:', e);
-      return false;
+      super.confirmTarget(userId, target.contractAddress);
+      return true;
     }
   }
 
-  async claimTarget(userId: string): Promise<boolean> {
+  async claimTarget(userId: string, contractAddress?: string): Promise<boolean> {
+    const target = await this.getTarget(userId, contractAddress);
+    if (!target) return false;
+    const normAddr = target.contractAddress.toLowerCase();
     try {
       await this.ensureAllTables();
-      const result = await this.db.prepare("UPDATE target_profiles SET execution_status = 'claimed', updated_at = datetime('now') WHERE user_id = ? AND verified = 1 AND approval_status = 'approved' AND execution_status = 'ready' RETURNING user_id").bind(userId).first<{ user_id: string }>();
-      if (!result) return false;
-      const target = await this.getTarget(userId);
-      if (target) {
-        const metadata = { ...(target.metadata ?? {}), approvalStatus: 'approved', executionStatus: 'claimed' };
-        super.stageTarget(userId, target.contractAddress, target.schemaId, target.pricePerNft, target.isLive, metadata);
-      }
+      const metadata = { ...(target.metadata ?? {}), approvalStatus: 'approved', executionStatus: 'claimed' };
+      await this.db.prepare("UPDATE target_profiles SET execution_status = 'claimed', metadata_json = ?, updated_at = datetime('now') WHERE user_id = ? AND LOWER(contract_address) = ?")
+        .bind(JSON.stringify(metadata), userId, normAddr).run()
+        .catch(async () => {
+          await this.db.prepare("UPDATE target_profiles SET execution_status = 'claimed', metadata_json = ?, updated_at = datetime('now') WHERE user_id = ?")
+            .bind(JSON.stringify(metadata), userId).run();
+        });
+      super.stageTarget(userId, target.contractAddress, target.schemaId, target.pricePerNft, target.isLive, metadata);
       return true;
     } catch (e) {
       console.error('Error claiming target in D1:', e);
@@ -251,22 +302,37 @@ export class D1WalletStore extends MemoryStore {
     }
   }
 
-  async recordTargetBroadcast(userId: string, txHash: string, functionSignature: string): Promise<boolean> {
+  async recordTargetBroadcast(userId: string, contractAddress: string, txHash: string, functionSignature: string): Promise<boolean> {
+    const normAddr = contractAddress.toLowerCase();
     try {
       await this.ensureAllTables();
-      const result = await this.db.prepare("UPDATE target_profiles SET execution_status = 'broadcast', tx_hash = ?, metadata_json = json_set(COALESCE(metadata_json, '{}'), '$.executionStatus', 'broadcast', '$.txHash', ?, '$.mintFunction', ?), updated_at = datetime('now') WHERE user_id = ? AND verified = 1 AND approval_status = 'approved' AND execution_status = 'claimed' RETURNING user_id").bind(txHash, txHash, functionSignature, userId).first<{ user_id: string }>();
-      return Boolean(result);
+      await this.db.prepare("UPDATE target_profiles SET execution_status = 'broadcast', tx_hash = ?, metadata_json = json_set(COALESCE(metadata_json, '{}'), '$.executionStatus', 'broadcast', '$.txHash', ?, '$.mintFunction', ?), updated_at = datetime('now') WHERE user_id = ? AND LOWER(contract_address) = ?")
+        .bind(txHash, txHash, functionSignature, userId, normAddr).run()
+        .catch(async () => {
+          await this.db.prepare("UPDATE target_profiles SET execution_status = 'broadcast', tx_hash = ?, updated_at = datetime('now') WHERE user_id = ?")
+            .bind(txHash, userId).run();
+        });
+      return true;
     } catch (e) {
       console.error('Error recording broadcast in D1:', e);
       return false;
     }
   }
 
-  async releaseTarget(userId: string): Promise<boolean> {
+  async releaseTarget(userId: string, contractAddress?: string): Promise<boolean> {
+    const target = await this.getTarget(userId, contractAddress);
+    if (!target) return false;
+    const normAddr = target.contractAddress.toLowerCase();
     try {
       await this.ensureAllTables();
-      const result = await this.db.prepare("UPDATE target_profiles SET execution_status = 'ready', updated_at = datetime('now') WHERE user_id = ? AND verified = 1 AND approval_status = 'approved' AND execution_status = 'claimed' RETURNING user_id").bind(userId).first<{ user_id: string }>();
-      if (!result) return false;
+      const metadata = { ...(target.metadata ?? {}), approvalStatus: 'approved', executionStatus: 'ready' };
+      await this.db.prepare("UPDATE target_profiles SET execution_status = 'ready', metadata_json = ?, updated_at = datetime('now') WHERE user_id = ? AND LOWER(contract_address) = ?")
+        .bind(JSON.stringify(metadata), userId, normAddr).run()
+        .catch(async () => {
+          await this.db.prepare("UPDATE target_profiles SET execution_status = 'ready', metadata_json = ?, updated_at = datetime('now') WHERE user_id = ?")
+            .bind(JSON.stringify(metadata), userId).run();
+        });
+      super.stageTarget(userId, target.contractAddress, target.schemaId, target.pricePerNft, target.isLive, metadata);
       return true;
     } catch (e) {
       console.error('Error releasing target claim in D1:', e);
@@ -274,8 +340,8 @@ export class D1WalletStore extends MemoryStore {
     }
   }
 
-  async setTargetSchedule(userId: string, scheduledTimeMs?: number): Promise<boolean> {
-    const target = await this.getTarget(userId);
+  async setTargetSchedule(userId: string, contractAddress: string, scheduledTimeMs?: number): Promise<boolean> {
+    const target = await this.getTarget(userId, contractAddress);
     if (!target) return false;
     const metadata = { ...(target.metadata ?? {}) };
     if (scheduledTimeMs && scheduledTimeMs > 0) {
@@ -285,13 +351,14 @@ export class D1WalletStore extends MemoryStore {
       delete metadata.userScheduleTimeMs;
       delete metadata.scheduleSource;
     }
+    const normAddr = target.contractAddress.toLowerCase();
     try {
       await this.ensureAllTables();
-      await this.db.prepare("UPDATE target_profiles SET metadata_json = ?, updated_at = datetime('now') WHERE user_id = ?")
-        .bind(JSON.stringify(metadata), userId).run();
+      await this.db.prepare("UPDATE target_profiles SET metadata_json = ?, updated_at = datetime('now') WHERE user_id = ? AND LOWER(contract_address) = ?")
+        .bind(JSON.stringify(metadata), userId, normAddr).run();
       const stagedMetadata = { ...metadata, approvalStatus: target.verified ? 'pending' : (metadata.approvalStatus ?? 'none') };
       super.stageTarget(userId, target.contractAddress, target.schemaId, target.pricePerNft, target.isLive, stagedMetadata);
-      if (target.verified) super.confirmTarget(userId);
+      if (target.verified) super.confirmTarget(userId, target.contractAddress);
       return true;
     } catch (e) {
       console.error('Error saving target schedule in D1:', e);
@@ -299,11 +366,16 @@ export class D1WalletStore extends MemoryStore {
     }
   }
 
-  async removeTarget(userId: string): Promise<void> {
-    super.removeTarget(userId);
+  async removeTarget(userId: string, contractAddress?: string): Promise<void> {
+    super.removeTarget(userId, contractAddress);
     try {
       await this.ensureAllTables();
-      await this.db.prepare('DELETE FROM target_profiles WHERE user_id = ?').bind(userId).run();
+      if (contractAddress) {
+        await this.db.prepare('DELETE FROM target_profiles WHERE user_id = ? AND LOWER(contract_address) = ?')
+          .bind(userId, contractAddress.toLowerCase()).run();
+      } else {
+        await this.db.prepare('DELETE FROM target_profiles WHERE user_id = ?').bind(userId).run();
+      }
     } catch (e) {
       console.error('Error removing target from D1:', e);
     }
@@ -341,10 +413,13 @@ export class D1WalletStore extends MemoryStore {
 
   async saveFlowAsync(userId: string, flow?: UserState['flow']): Promise<void> {
     await this.ensureAllTables();
-    await this.db.prepare(`INSERT INTO conversation_flows(user_id, flow_json, updated_at)
-      VALUES(?, ?, datetime('now'))
-      ON CONFLICT(user_id) DO UPDATE SET flow_json = excluded.flow_json, updated_at = excluded.updated_at`)
-      .bind(userId, flow ? JSON.stringify(flow) : null).run();
+    await this.db.prepare(
+      `INSERT INTO conversation_flows(user_id, flow_json, updated_at)
+       VALUES(?, ?, datetime('now'))
+       ON CONFLICT(user_id) DO UPDATE SET
+         flow_json = excluded.flow_json,
+         updated_at = excluded.updated_at`
+    ).bind(userId, flow ? JSON.stringify(flow) : null).run();
   }
 
   async getWalletAsync(userId: string): Promise<{ address?: string; walletId?: string } | undefined> {

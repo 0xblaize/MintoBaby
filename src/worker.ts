@@ -341,8 +341,17 @@ export default {
       }
     }
 
-    // 4. Default Status Route
-    return new Response(`⚡️ Mintobot Cloudflare Worker Live!\n\nUse /set-webhook to link this worker to your Telegram bot.`, {
+    // 4. Manual / External Cron Trigger Route (Pingable by cron-job.org, Upstash, etc.)
+    if (url.pathname === '/cron' || url.pathname === '/trigger') {
+      ctx.waitUntil(this.scheduled({ cron: 'manual' }, env, ctx));
+      return new Response(JSON.stringify({ status: 'triggered', timestamp: new Date().toISOString() }), {
+        headers: { 'Content-Type': 'application/json' },
+        status: 200
+      });
+    }
+
+    // 5. Default Status Route
+    return new Response(`⚡️ Mintobot Cloudflare Worker Live!\n\nUse /set-webhook to link this worker to your Telegram bot.\nUse /cron to trigger an instant execution check.`, {
       headers: { 'Content-Type': 'text/plain' },
       status: 200
     });
@@ -431,31 +440,25 @@ export default {
           }
 
           const routerAdapter = getConfiguredRouterAdapter(env, target.contractAddress);
-          if (env.AUTO_MINT_USER_PAID_EXECUTOR === 'true' && !routerAdapter) {
-            const reason = 'User-paid executor mode is enabled, but this target is not configured in AUTO_MINT_ROUTER_TARGETS.';
-            console.log(`[SNIPER] ${reason} ${target.contractAddress}`);
-            await telegram.sendMessage(target.userId, `⚠️ <b>AUTO-MINT BLOCKED</b>\n\n• <b>Target:</b> <code>${target.contractAddress}</code>\n• <b>Reason:</b> ${reason}\n\nNo direct-wallet fallback was used.`);
-            continue;
-          }
+          const routerTarget = Boolean(routerAdapter && env.AUTO_MINT_EXECUTOR_ADDRESS);
 
           if (target.metadata?.approvalStatus !== 'approved' || target.metadata?.executionStatus === 'claimed') {
             console.log(`[SNIPER] Target ${target.contractAddress} is not claimable — skipping.`);
             continue;
           }
-          if (!(await store.claimTarget?.(target.userId))) {
+          if (!(await store.claimTarget?.(target.userId, target.contractAddress))) {
             console.log(`[SNIPER] Target ${target.contractAddress} was claimed by another invocation — skipping.`);
             continue;
           }
           claimed = true;
-          const claimedTarget = await store.getTarget(target.userId);
+          const claimedTarget = await store.getTarget(target.userId, target.contractAddress);
           if (!claimedTarget || claimedTarget.contractAddress.toLowerCase() !== target.contractAddress.toLowerCase() || claimedTarget.metadata?.approvalStatus !== 'approved' || claimedTarget.metadata.executionStatus !== 'claimed') {
-            await store.releaseTarget?.(target.userId);
+            await store.releaseTarget?.(target.userId, target.contractAddress);
             claimed = false;
             console.log(`[SNIPER] Target ${target.contractAddress} changed during preparation — refusing stale execution.`);
             continue;
           }
 
-          const routerTarget = Boolean(routerAdapter);
           const userPaidExecutor = routerTarget && env.AUTO_MINT_USER_PAID_EXECUTOR === 'true';
           const privateKey = await walletManager.decrypt(encWallet.encryptedKey, encWallet.iv, encWallet.tag);
           const signerAddress = new Wallet(privateKey).address;
@@ -473,7 +476,7 @@ export default {
 
           const onBroadcast = async (txHash: string, functionSignature: string) => {
             broadcasted = true;
-            await store.recordTargetBroadcast?.(target.userId, txHash, functionSignature);
+            await store.recordTargetBroadcast?.(target.userId, target.contractAddress, txHash, functionSignature);
             await telegram.sendMessage(
               target.userId,
               `📡 <b>AUTO-MINT TRANSACTION BROADCASTED</b>\n\n` +
@@ -539,8 +542,8 @@ export default {
           if (res.success) {
             const newBal = await executor.getBalance(encWallet.address);
 
-            // Safety guard: Un-arm IMMEDIATELY to prevent any double-minting
-            await store.removeTarget(target.userId);
+            // Safety guard: Un-arm this specific target to prevent double-minting
+            await store.removeTarget(target.userId, target.contractAddress);
 
             const name = target.metadata?.name || 'Robinhood NFT Drop';
             const symbol = target.metadata?.symbol || 'NFT';

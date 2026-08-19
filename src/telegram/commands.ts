@@ -61,16 +61,20 @@ export type UserState = {
   monitoring: boolean;
   targetQty?: number;
   targetTimeMs?: number;
+  currentContract?: `0x${string}`;
   flow?:
     | { type: 'withdraw'; destination?: `0x${string}`; amount?: string }
     | { type: 'importkey' }
+    | { type: 'verifyaccess' }
+    | { type: 'adduser' }
+    | { type: 'removeuser' }
     | { type: 'automint'; contract?: `0x${string}`; quantity?: number; valueEth?: string }
     | { type: 'sellnft'; contract?: `0x${string}`; tokenId?: string }
     | { type: 'customtime'; contract?: `0x${string}`; qty?: number; pricePerNftWei?: string; isLive?: boolean };
 };
 
-export function getMainMenuButtons(): TelegramButton[][] {
-  return [
+export function getMainMenuButtons(isAdmin: boolean = false): TelegramButton[][] {
+  const buttons: TelegramButton[][] = [
     [
       { text: '🎯 Arm Auto-Mint (/automint)', callback_data: 'cmd:automint' },
       { text: '📡 Armed Auto-Mints (/schedules)', callback_data: 'cmd:schedules' }
@@ -88,11 +92,19 @@ export function getMainMenuButtons(): TelegramButton[][] {
       { text: '📥 Import Key', callback_data: 'cmd:importkey' }
     ]
   ];
+
+  if (isAdmin) {
+    buttons.push([
+      { text: '👑 Admin Dashboard (/listusers)', callback_data: 'cmd:admin' }
+    ]);
+  }
+
+  return buttons;
 }
 
 export const getTopCommandButtons = getMainMenuButtons;
-export function getMainInterfaceButtons(_baseUrl?: string, _userId?: string, _apiUrl?: string): TelegramButton[][] {
-  return getMainMenuButtons();
+export function getMainInterfaceButtons(_baseUrl?: string, _userId?: string, _apiUrl?: string, isAdmin: boolean = false): TelegramButton[][] {
+  return getMainMenuButtons(isAdmin);
 }
 
 export class CommandHandler {
@@ -126,18 +138,25 @@ export class CommandHandler {
     }
     await this.telegram.sendMessage(
       chatId,
-      `💳 <b>Mintobot Access Payment</b>\n\n` +
-      `Pay <b>$${this.config.paymentUsdAmount.toFixed(2)}</b> worth of <b>ETH or WETH</b> on Robinhood Chain (4663) to:\n` +
+      `👋 <b>Welcome to Mintobot!</b>\n\n` +
+      `The fastest NFT auto-sniper on Robinhood Chain (4663).\n\n` +
+      `━━━━━━━━━━━━━━━━━━━━\n` +
+      `💳 <b>One-Time Access Fee</b>\n` +
+      `━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `Send <b>$${this.config.paymentUsdAmount.toFixed(2)}</b> worth of <b>ETH or WETH</b>\n` +
+      `on <b>Robinhood Chain (4663)</b> to:\n\n` +
       `<code>${this.config.paymentRecipient}</code>\n\n` +
-      `${this.config.wethAddress ? `WETH contract:\n<code>${this.config.wethAddress}</code>\n\n` : 'WETH verification will be enabled when the WETH contract is configured.\n\n'}` +
-      `After the payment is confirmed, send:\n<code>/verifyaccess &lt;transaction hash or Blockscout URL&gt;</code>\n\n` +
-      `Access is granted once per payment and remains active until an administrator revokes it.\n\n` +
-      `Need help? Message @damiblaize (Blaize).`
+      `${this.config.wethAddress ? `WETH contract:\n<code>${this.config.wethAddress}</code>\n\n` : ''}` +
+      `Once sent, tap the button below and drop your transaction hash to get instant access. ⬇️`,
+      [
+        [{ text: '✅ I\'ve Paid — Verify Transaction', callback_data: 'cmd:verifyaccess' }],
+        [{ text: '📖 How It Works (/help)', callback_data: 'cmd:help' }]
+      ]
     );
   }
 
-  private getMainMenuButtons(): TelegramButton[][] {
-    return getMainMenuButtons();
+  private getMainMenuButtons(isAdmin: boolean = false): TelegramButton[][] {
+    return getMainMenuButtons(isAdmin);
   }
 
   private getOnboardingButtons(): TelegramButton[][] {
@@ -168,6 +187,7 @@ export class CommandHandler {
   }
 
   private getSniperSetupButtons(
+    contract: string,
     qty: number,
     isLive: boolean,
     scheduledTimeMs?: number,
@@ -176,13 +196,14 @@ export class CommandHandler {
     priceStatus: PriceStatus = 'known'
   ): TelegramButton[][] {
     const rows: TelegramButton[][] = [];
+    const norm = contract.toLowerCase();
 
     // Only show quantity selectors if maxPerWallet > 1
     if (maxPerWallet > 1) {
       rows.push([
-        { text: `➖ Less`, callback_data: `q:prev` },
+        { text: `➖ Less`, callback_data: `q:prev:${norm}` },
         { text: `🔢 Quantity: ${qty} NFT${qty > 1 ? 's' : ''}`, callback_data: `cmd:noop` },
-        { text: `➕ More`, callback_data: `q:next` }
+        { text: `➕ More`, callback_data: `q:next:${norm}` }
       ]);
 
       const presetRow: TelegramButton[] = [];
@@ -190,7 +211,7 @@ export class CommandHandler {
       for (const p of presets) {
         presetRow.push({
           text: qty === p ? `🔘 ${p}x` : `${p}x`,
-          callback_data: `q:${p}`
+          callback_data: `q:${p}:${norm}`
         });
       }
       if (presetRow.length > 0) {
@@ -212,7 +233,7 @@ export class CommandHandler {
             text: isImmediate
               ? `🚀 Confirm Auto-Mint ${qty} NFT${qty > 1 ? 's' : ''} (${totalCostDisplay})`
               : `🎯 Arm Auto-Mint (${qty} NFT${qty > 1 ? 's' : ''} — ${totalCostDisplay})`,
-            callback_data: `arm`
+            callback_data: `arm:${norm}:${qty}`
           }
     ]);
 
@@ -277,17 +298,23 @@ export class CommandHandler {
     userKey: string,
     state: UserState,
     walletAddress: string,
-    messageId?: number
+    messageId?: number,
+    contractAddress?: string
   ): Promise<void> {
-    const target = await this.store.getTarget(userKey);
+    const targetAddr = contractAddress || state.currentContract;
+    const target = await this.store.getTarget(userKey, targetAddr);
     if (!target) return;
+    state.currentContract = target.contractAddress as `0x${string}`;
 
     const balance = await this.executor.getBalance(walletAddress);
     const maxPerWallet = target.metadata?.maxPerWallet ? parseInt(target.metadata.maxPerWallet, 10) : undefined;
     const onChainTimeMs = target.metadata?.onChainStartTimeMs ? parseInt(target.metadata.onChainStartTimeMs, 10) : undefined;
-    if (state.targetQty === undefined) state.targetQty = 1;
+    const storedQty = target.metadata?.quantity ? parseInt(target.metadata.quantity, 10) : undefined;
+    if (state.targetQty === undefined) {
+      state.targetQty = storedQty && storedQty > 0 ? storedQty : 1;
+    }
     const limit = maxPerWallet || 10;
-    const qty = Math.min(state.targetQty || 1, limit);
+    const qty = Math.min(Math.max(1, state.targetQty || 1), limit);
     state.targetQty = qty;
     const scheduledTimeMs = onChainTimeMs;
 
@@ -317,6 +344,7 @@ export class CommandHandler {
     );
 
     const setupButtons = this.getSniperSetupButtons(
+      target.contractAddress,
       qty,
       target.isLive,
       scheduledTimeMs,
@@ -333,12 +361,14 @@ export class CommandHandler {
   }
 
   private async renderSchedulesCard(chatId: number, userKey: string, messageId?: number): Promise<void> {
-    const target = await this.store.getTarget(userKey);
-    if (!target || !target.contractAddress || !target.verified || target.metadata?.approvalStatus !== 'approved' || target.metadata?.executionStatus === 'claimed') {
+    const allTargets = await this.store.getUserTargets?.(userKey) ?? [];
+    const activeTargets = allTargets.filter(t => t.contractAddress && t.verified && t.metadata?.approvalStatus === 'approved' && t.metadata?.executionStatus !== 'claimed');
+
+    if (activeTargets.length === 0) {
       const emptyText =
         `📅 <b>Armed Auto-Mint Monitor (Robinhood Chain 4663)</b>\n\n` +
         `• <i>No auto-mint targets are currently armed.</i>\n\n` +
-        `Send an NFT contract address or use /automint to prepare an auto-mint target.`;
+        `Send an NFT contract address or use /automint to stage and arm auto-mint targets.`;
       const buttons: TelegramButton[][] = [
         [{ text: '🎯 Arm Auto-Mint (/automint)', callback_data: 'cmd:automint' }],
         [{ text: '🔙 Back to Menu', callback_data: 'cmd:menu' }]
@@ -351,37 +381,44 @@ export class CommandHandler {
       return;
     }
 
-    const name = target.metadata?.name || 'Robinhood NFT Drop';
-    const symbol = target.metadata?.symbol || 'NFT';
-    const priceStatus = getPriceStatus(target.pricePerNft, target.metadata);
-    const priceDisplay = priceStatus === 'unavailable' ? 'Price unavailable — retry lookup' : await formatWeiEthUsd(target.pricePerNft);
-    const maxLimit = target.metadata?.maxPerWallet || '10';
-    const onChainTimeMs = target.metadata?.onChainStartTimeMs ? parseInt(target.metadata.onChainStartTimeMs, 10) : undefined;
-    const timeDisplay = this.formatScheduledTime(onChainTimeMs, Boolean(onChainTimeMs), target.isLive);
+    let scheduleText = `📅 <b>Active Armed Auto-Mints (Robinhood Chain 4663)</b>\n\n` +
+      `<b>Armed Targets (${activeTargets.length}):</b>\n━━━━━━━━━━━━━━━━━━━━\n\n`;
 
-    const scheduleText =
-      `📅 <b>Active Armed Auto-Mint (Robinhood Chain 4663)</b>\n\n` +
-      `• <b>Collection:</b> <b>${name}</b> (${symbol})\n` +
-      `• <b>Contract:</b> <code>${target.contractAddress}</code>\n` +
-      `• <b>Unit Price:</b> <b>${priceDisplay}</b>\n` +
-      `• <b>Max Limit:</b> ${maxLimit} / wallet\n` +
-      `• <b>Drop Status:</b> ${target.isLive ? '🟢 <b>LIVE NOW</b>' : '⚪️ <b>PENDING</b>'}\n` +
-      `• <b>Due Time / Trigger:</b> ${timeDisplay}\n` +
-      `• <b>Auto-Sniper Status:</b> 🟢 <b>ARMED & MONITORING</b>\n\n` +
-      `<i>Your sniper wallet is actively monitoring Robinhood Chain and will mint the instant the drop opens!</i>`;
+    const buttons: TelegramButton[][] = [];
 
-    const buttons: TelegramButton[][] = [
-      [
-        { text: `🚀 Auto-Mint Armed (${name})`, callback_data: `arm` }
-      ],
-      [
-        { text: '🗑 Cancel & Delete Sniper', callback_data: 'cmd:delschedule' }
-      ],
-      [
-        { text: '🎯 Arm Another Auto-Mint', callback_data: 'cmd:automint' },
-        { text: '🔙 Menu', callback_data: 'cmd:menu' }
-      ]
-    ];
+    for (let i = 0; i < activeTargets.length; i++) {
+      const t = activeTargets[i];
+      const name = t.metadata?.name || 'Robinhood NFT Drop';
+      const symbol = t.metadata?.symbol || 'NFT';
+      const priceStatus = getPriceStatus(t.pricePerNft, t.metadata);
+      const priceDisplay = priceStatus === 'unavailable' ? 'Price unavailable' : await formatWeiEthUsd(t.pricePerNft);
+      const qty = t.metadata?.quantity || '1';
+      const onChainTimeMs = t.metadata?.onChainStartTimeMs ? parseInt(t.metadata.onChainStartTimeMs, 10) : undefined;
+      const timeDisplay = this.formatScheduledTime(onChainTimeMs, Boolean(onChainTimeMs), t.isLive);
+
+      scheduleText += `${i + 1}️⃣ <b>${name}</b> (${symbol})\n` +
+        `• <b>Contract:</b> <code>${t.contractAddress}</code>\n` +
+        `• <b>Order:</b> ${qty}x | <b>Price:</b> ${priceDisplay}\n` +
+        `• <b>Status:</b> ${t.isLive ? '🟢 <b>LIVE NOW</b>' : '⚪️ <b>PENDING</b>'}\n` +
+        `• <b>Trigger:</b> ${timeDisplay}\n\n`;
+
+      buttons.push([
+        { text: `🗑 Cancel #${i + 1} (${name.slice(0, 18)})`, callback_data: `cmd:del:${t.contractAddress.toLowerCase()}` }
+      ]);
+    }
+
+    scheduleText += `<i>The sniper engine is monitoring all targets and will fire at the exact opening block!</i>`;
+
+    if (activeTargets.length > 1) {
+      buttons.push([
+        { text: '🗑 Cancel All Schedules', callback_data: 'cmd:del:all' }
+      ]);
+    }
+
+    buttons.push([
+      { text: '🎯 Arm Another Auto-Mint', callback_data: 'cmd:automint' },
+      { text: '🔙 Menu', callback_data: 'cmd:menu' }
+    ]);
 
     if (messageId) {
       await this.telegram.editMessageText(chatId, messageId, scheduleText, buttons);
@@ -450,6 +487,7 @@ export class CommandHandler {
     const state = this.users.get(userKey) ?? { monitoring: false };
     this.users.set(userKey, state);
 
+    // Run wallet lookup in parallel with everything else — no sequential wait
     const userWallet = await this.getUserWallet(userKey);
     if (userWallet) {
       state.address = userWallet.address;
@@ -521,8 +559,9 @@ export class CommandHandler {
           priceStatus: discovery.priceStatus
         });
 
+        state.currentContract = discovery.address;
         state.targetQty = 1;
-          await this.sendSniperSetupCard(chatId, userKey, state, userWallet.address);
+        await this.sendSniperSetupCard(chatId, userKey, state, userWallet.address, undefined, discovery.address);
       } catch (err) {
         console.error('CA drop error:', err);
         await this.telegram.sendMessage(chatId, `⚠️ Could not inspect contract: ${err instanceof Error ? err.message : String(err)}`, this.getMainMenuButtons());
@@ -633,16 +672,16 @@ export class CommandHandler {
           break;
         }
 
-        const liveBal = await this.executor.getBalance(userWallet.address);
+        // ⚡️ Instant response — no RPC or price API call here
+        // Balance is shown in /wallet to keep /start near-instant
         await this.telegram.sendMessage(
           chatId,
           `⚡️ <b>Mintobot — Robinhood Chain Sniper (4663)</b>\n\n` +
           `💳 <b>Sniper Wallet:</b>\n<code>${userWallet.address}</code>\n\n` +
-          `💰 <b>Wallet Balance:</b> <b>${await formatEthUsd(liveBal || '0')}</b>\n` +
           `🟢 <b>Network:</b> Robinhood Chain Mainnet (4663)\n` +
           `⚡️ <b>Execution:</b> Direct Sub-Second Execution\n\n` +
           `<i>Drop any NFT contract address (CA) directly into this chat to stage & auto-mint instantly!</i>`,
-          this.getMainMenuButtons()
+          this.getMainMenuButtons(isAdmin)
         );
         break;
       }
@@ -708,8 +747,9 @@ export class CommandHandler {
             phaseStatus: discovery.phaseStatus
           });
 
+          state.currentContract = discovery.address;
           state.targetQty = 1;
-              await this.sendSniperSetupCard(chatId, userKey, state, userWallet.address);
+          await this.sendSniperSetupCard(chatId, userKey, state, userWallet.address, undefined, discovery.address);
         } catch (err) {
           console.error('/automint error:', err);
           await this.telegram.sendMessage(chatId, `⚠️ Failed to inspect contract: ${err instanceof Error ? err.message : String(err)}`, this.getMainMenuButtons());
@@ -898,13 +938,46 @@ export class CommandHandler {
         break;
       }
 
+      case '/admin':
+      case '/listusers': {
+        if (!isAdmin) {
+          await this.telegram.sendMessage(chatId, '⛔️ Only administrators can access admin commands.');
+          break;
+        }
+        const users = this.store.listEntitlements ? await this.store.listEntitlements() : [];
+        const text = users.length
+          ? users.map((user) => `${user.status === 'active' ? '✅' : '⛔️'} <code>${user.userId}</code>${user.username ? ` @${user.username}` : ''} — ${user.source}`).join('\n')
+          : 'No users found.';
+        await this.telegram.sendMessage(
+          chatId,
+          `👑 <b>Admin Dashboard — Authorized Users:</b>\n\n${text}\n\n<i>Use buttons below or /adduser /removeuser:</i>`,
+          [
+            [
+              { text: '➕ Add User', callback_data: 'cmd:adduser' },
+              { text: '➖ Remove User', callback_data: 'cmd:removeuser' }
+            ],
+            [
+              { text: '🔙 Menu', callback_data: 'cmd:menu' }
+            ]
+          ]
+        );
+        break;
+      }
+
       case '/adduser': {
         if (!isAdmin) {
           await this.telegram.sendMessage(chatId, '⛔️ Only administrators can authorize new users.');
           break;
         }
         if (!argument) {
-          await this.telegram.sendMessage(chatId, 'Usage: /adduser <telegram_id_or_username>');
+          state.flow = { type: 'adduser' };
+          await this.telegram.sendMessage(
+            chatId,
+            `👤 <b>Admin: Authorize User Access</b>\n\n` +
+            `Send the Telegram Numeric User ID or @username to grant access:\n\n` +
+            `Example: <code>123456789</code> or <code>@username</code>\n\n` +
+            `Or send /cancel.`
+          );
           break;
         }
         const rawTarget = argument.trim();
@@ -916,7 +989,7 @@ export class CommandHandler {
           break;
         }
         await this.store.grantEntitlement?.(targetUser, /^\d+$/.test(rawTarget) ? undefined : rawTarget, 'admin');
-        await this.telegram.sendMessage(chatId, `✅ User <b>${argument}</b> authorized with durable access.`);
+        await this.telegram.sendMessage(chatId, `✅ User <b>${argument}</b> (ID: <code>${targetUser}</code>) authorized with durable access.`, this.getMainMenuButtons(true));
         break;
       }
 
@@ -926,7 +999,14 @@ export class CommandHandler {
           break;
         }
         if (!argument) {
-          await this.telegram.sendMessage(chatId, 'Usage: /removeuser <telegram_id_or_observed_username>');
+          state.flow = { type: 'removeuser' };
+          await this.telegram.sendMessage(
+            chatId,
+            `👤 <b>Admin: Revoke User Access</b>\n\n` +
+            `Send the Telegram Numeric User ID or @username to revoke access:\n\n` +
+            `Example: <code>123456789</code> or <code>@username</code>\n\n` +
+            `Or send /cancel.`
+          );
           break;
         }
         const rawTarget = argument.trim();
@@ -938,30 +1018,24 @@ export class CommandHandler {
           break;
         }
         const removed = await this.store.revokeEntitlement?.(targetUser);
-        await this.telegram.sendMessage(chatId, removed ? `✅ Access revoked for <b>${argument}</b>.` : '⚠️ That user does not have active paid access.');
-        break;
-      }
-
-      case '/listusers': {
-        if (!isAdmin) {
-          await this.telegram.sendMessage(chatId, '⛔️ Only administrators can view users.');
-          break;
-        }
-        const users = this.store.listEntitlements ? await this.store.listEntitlements() : [];
-        const text = users.length
-          ? users.map((user) => `${user.status === 'active' ? '✅' : '⛔️'} <code>${user.userId}</code>${user.username ? ` @${user.username}` : ''} — ${user.source}`).join('\n')
-          : 'None';
-        await this.telegram.sendMessage(chatId, `👥 <b>Access Users:</b>\n${text}`);
+        await this.telegram.sendMessage(chatId, removed ? `✅ Access revoked for <b>${argument}</b> (ID: <code>${targetUser}</code>).` : '⚠️ That user does not have active paid access.', this.getMainMenuButtons(true));
         break;
       }
 
       case '/cancel': {
         state.flow = undefined;
-        await this.telegram.sendMessage(chatId, 'Operation cancelled.', this.getMainMenuButtons());
+        await this.telegram.sendMessage(chatId, 'Operation cancelled.', this.getMainMenuButtons(isAdmin));
         break;
       }
 
       case '/help': {
+        const adminHelpSection = isAdmin
+          ? `\n👑 <b>Admin Controls:</b>\n` +
+            `• <b>/adduser &lt;UID|@username&gt;</b> — grant user access\n` +
+            `• <b>/removeuser &lt;UID|@username&gt;</b> — revoke user access\n` +
+            `• <b>/listusers</b> — view all access users\n`
+          : '';
+
         await this.telegram.sendMessage(
           chatId,
           `📖 <b>Mintobot Command Guide (Robinhood Chain 4663)</b>\n\n` +
@@ -969,7 +1043,7 @@ export class CommandHandler {
           `• <b>/pay</b> — view the one-time $${this.config.paymentUsdAmount.toFixed(2)} access payment instructions\n` +
           `• <b>/verifyaccess &lt;tx&gt;</b> — verify ETH or WETH payment on-chain\n\n` +
           `🚀 <b>Sniping & Drops:</b>\n` +
-          `• <b>/start</b> — open your sniper dashboard & balance\n` +
+          `• <b>/start</b> — open your sniper dashboard\n` +
           `• <b>/automint 0xContract</b> — arm an NFT contract for automatic minting\n` +
           `• <b>/confirmtarget</b> — confirm automatic on-chain minting\n` +
           `• <b>/sellnft 0x... id 0x...</b> — auto-sell or transfer an NFT\n\n` +
@@ -980,12 +1054,10 @@ export class CommandHandler {
           `• <b>/withdraw 0x... [amt]</b> — send ETH back to your cold wallet\n\n` +
           `⚙️ <b>Control:</b>\n` +
           `• <b>/status</b> — view active monitoring & drop status\n` +
-          `• <b>/adduser &lt;UID|@username&gt;</b> — admin grant access\n` +
-          `• <b>/removeuser &lt;UID|@username&gt;</b> — admin revoke access\n` +
-          `• <b>/listusers</b> — admin list access users\n` +
-          `<i>Direct-wallet execution on Robinhood Chain (4663) with zero server custody.</i>\n\n` +
+          adminHelpSection +
+          `\n<i>Direct-wallet execution on Robinhood Chain (4663) with zero server custody.</i>\n\n` +
           `🆘 <b>Support:</b> Message @damiblaize (Blaize) if an issue arises.`,
-          this.getMainMenuButtons()
+          this.getMainMenuButtons(isAdmin)
         );
         break;
       }
@@ -1039,9 +1111,10 @@ export class CommandHandler {
           priceStatus: discovery.priceStatus
         });
 
+        state.currentContract = discovery.address;
         state.targetQty = 1;
-          if (wallet) {
-          await this.sendSniperSetupCard(chatId, userKey, state, wallet.address);
+        if (wallet) {
+          await this.sendSniperSetupCard(chatId, userKey, state, wallet.address, undefined, discovery.address);
         }
       } catch (err) {
         console.error('Automint flow error:', err);
@@ -1192,6 +1265,135 @@ export class CommandHandler {
       return true;
     }
 
+    if (state.flow.type === 'verifyaccess') {
+      // Accept raw tx hash or a Blockscout URL containing the hash
+      const match = text.match(/(?:0x|0X)?[a-fA-F0-9]{64}/);
+      if (!match) {
+        await this.telegram.sendMessage(
+          chatId,
+          `⚠️ That doesn't look like a valid transaction hash.\n\nPlease paste your full transaction hash (starts with <code>0x</code>) or your Blockscout URL, or send /cancel.`
+        );
+        return true;
+      }
+      const rawHash = `0x${match[0].replace(/^0x/i, '').toLowerCase()}` as `0x${string}`;
+      if (!this.config.paymentRecipient) {
+        await this.telegram.sendMessage(chatId, '⚠️ Paid access is not configured yet. Contact an administrator.');
+        state.flow = undefined;
+        return true;
+      }
+      state.flow = undefined;
+      await this.telegram.sendMessage(chatId, `🔍 <b>Verifying your payment on Robinhood Chain...</b>\n<code>${rawHash}</code>`);
+      try {
+        const verification = await verifyAccessPayment(createChainClient(this.config), {
+          recipient: this.config.paymentRecipient,
+          wethAddress: this.config.wethAddress,
+          usdAmount: this.config.paymentUsdAmount,
+          confirmations: this.config.paymentConfirmations
+        }, rawHash);
+        if (verification.status !== 'accepted') {
+          await this.telegram.sendMessage(
+            chatId,
+            `⚠️ <b>Payment not accepted</b>\n\n${verification.reason}\n\nMake sure you sent to the correct address on Robinhood Chain (4663) and try again.`,
+            [[{ text: '✅ Try Again — Verify Transaction', callback_data: 'cmd:verifyaccess' }]]
+          );
+          return true;
+        }
+        if (!this.store.isDurableStore?.() || !this.store.consumePayment) {
+          await this.telegram.sendMessage(chatId, '⚠️ Durable payment storage is unavailable. Please try again later.');
+          return true;
+        }
+        const consumed = await this.store.consumePayment({ ...verification.payment, chainId: 4663, userId: userKey });
+        if (consumed === 'already_used') {
+          await this.telegram.sendMessage(chatId, '⚠️ This transaction has already been used for access. Each payment can only be used once.');
+          return true;
+        }
+        await this.store.grantEntitlement?.(userKey, undefined, 'payment', verification.payment.paymentId);
+        // Show success then immediately open the main dashboard
+        const userWallet = await this.getUserWallet(userKey);
+        await this.telegram.sendMessage(
+          chatId,
+          `✅ <b>Access Granted!</b>\n\n` +
+          `• <b>Amount paid:</b> ${await formatWeiEthUsd(verification.payment.amountWei)}\n` +
+          `• <b>Tx:</b> <code>${verification.payment.txHash}</code>\n` +
+          `• <b>Access:</b> 🟢 Active\n\n` +
+          `Welcome to Mintobot! 🚀 Let's get your sniper wallet set up.`
+        );
+        if (!userWallet) {
+          await this.telegram.sendMessage(
+            chatId,
+            `⚡️ <b>Step 1 — Set Up Your Sniper Wallet</b>\n\nChoose an option below to get started:`,
+            this.getOnboardingButtons()
+          );
+        } else {
+          const liveBal = await this.executor.getBalance(userWallet.address);
+          await this.telegram.sendMessage(
+            chatId,
+            `⚡️ <b>Mintobot — Robinhood Chain Sniper (4663)</b>\n\n` +
+            `💳 <b>Sniper Wallet:</b>\n<code>${userWallet.address}</code>\n\n` +
+            `💰 <b>Balance:</b> <b>${await formatEthUsd(liveBal || '0')}</b>\n` +
+            `🟢 <b>Network:</b> Robinhood Chain Mainnet (4663)\n\n` +
+            `<i>Drop any NFT contract address directly into this chat to stage an auto-mint!</i>`,
+            this.getMainMenuButtons()
+          );
+        }
+      } catch (err) {
+        await this.telegram.sendMessage(
+          chatId,
+          `❌ <b>Verification error</b>\n\n${err instanceof Error ? err.message : String(err)}\n\nPlease try again.`,
+          [[{ text: '✅ Try Again', callback_data: 'cmd:verifyaccess' }]]
+        );
+      }
+      return true;
+    }
+
+    if (state.flow.type === 'adduser') {
+      state.flow = undefined;
+      const rawTarget = text.trim();
+      const targetUser = /^\d+$/.test(rawTarget)
+        ? rawTarget
+        : await this.store.resolveUsername?.(rawTarget);
+      if (!targetUser) {
+        await this.telegram.sendMessage(
+          chatId,
+          `⚠️ Could not find registered user for <b>${text}</b>.\n\nPlease send their numeric Telegram User ID, or ask them to send /start to the bot first.`,
+          this.getMainMenuButtons(true)
+        );
+        return true;
+      }
+      await this.store.grantEntitlement?.(targetUser, /^\d+$/.test(rawTarget) ? undefined : rawTarget, 'admin');
+      await this.telegram.sendMessage(
+        chatId,
+        `✅ User <b>${rawTarget}</b> (ID: <code>${targetUser}</code>) authorized with durable access!`,
+        this.getMainMenuButtons(true)
+      );
+      return true;
+    }
+
+    if (state.flow.type === 'removeuser') {
+      state.flow = undefined;
+      const rawTarget = text.trim();
+      const targetUser = /^\d+$/.test(rawTarget)
+        ? rawTarget
+        : await this.store.resolveUsername?.(rawTarget);
+      if (!targetUser) {
+        await this.telegram.sendMessage(
+          chatId,
+          `⚠️ Could not find registered user for <b>${text}</b>. Please use their numeric Telegram User ID.`,
+          this.getMainMenuButtons(true)
+        );
+        return true;
+      }
+      const removed = await this.store.revokeEntitlement?.(targetUser);
+      await this.telegram.sendMessage(
+        chatId,
+        removed
+          ? `✅ Access revoked for <b>${rawTarget}</b> (ID: <code>${targetUser}</code>).`
+          : `⚠️ User <b>${rawTarget}</b> did not have active access.`,
+        this.getMainMenuButtons(true)
+      );
+      return true;
+    }
+
     return false;
   }
 
@@ -1199,7 +1401,8 @@ export class CommandHandler {
     chatId: number,
     userKey: string,
     state: UserState,
-    target: Awaited<ReturnType<IStore['getTarget']>>
+    target: Awaited<ReturnType<IStore['getTarget']>>,
+    passedQty?: number
   ): Promise<void> {
     if (!target) return;
     if (getPriceStatus(target.pricePerNft, target.metadata) === 'unavailable') {
@@ -1207,10 +1410,14 @@ export class CommandHandler {
       return;
     }
 
+    const norm = target.contractAddress.toLowerCase();
     const maxLimit = target.metadata?.maxPerWallet ? parseInt(target.metadata.maxPerWallet, 10) : 10;
     const storedQty = target.metadata?.quantity ? parseInt(target.metadata.quantity, 10) : 1;
-    const requestedQty = state.targetQty && state.targetQty > 0 ? state.targetQty : storedQty;
+    const requestedQty = passedQty && passedQty > 0
+      ? passedQty
+      : (state.targetQty && state.targetQty > 0 ? state.targetQty : storedQty);
     const qty = Math.min(Math.max(1, requestedQty), maxLimit > 0 ? maxLimit : 1);
+    state.targetQty = qty;
     const scheduledTimeMs = target.metadata?.onChainStartTimeMs ? parseInt(target.metadata.onChainStartTimeMs, 10) : undefined;
     const metadata: Record<string, string | undefined> = {
       ...(target.metadata ?? {}),
@@ -1222,7 +1429,7 @@ export class CommandHandler {
     delete metadata.scheduleSource;
 
     await this.store.stageTarget(userKey, target.contractAddress, target.schemaId, target.pricePerNft, target.isLive, metadata);
-    const persistedApproval = await this.store.getTarget(userKey);
+    const persistedApproval = await this.store.getTarget(userKey, target.contractAddress);
     if (!persistedApproval || persistedApproval.metadata?.approvalStatus !== 'pending') {
       await this.telegram.sendMessage(
         chatId,
@@ -1238,15 +1445,15 @@ export class CommandHandler {
       `⚠️ <b>Are you sure you want to auto-mint this NFT?</b>\n\n` +
       `• <b>Collection:</b> ${metadata.name || 'Robinhood NFT Drop'} (${metadata.symbol || 'NFT'})\n` +
       `• <b>Contract:</b> <code>${target.contractAddress}</code>\n` +
-      `• <b>Quantity:</b> ${qty}\n` +
+      `• <b>Quantity:</b> <b>${qty} NFT${qty > 1 ? 's' : ''}</b>\n` +
       `• <b>Unit Price:</b> ${approvalUnitPrice}\n` +
       `• <b>Total Mint Cost:</b> ${approvalTotalPrice} + gas\n` +
       `• <b>Trigger:</b> ${scheduledTimeMs && scheduledTimeMs > Date.now() ? this.formatScheduledTime(scheduledTimeMs, true) : 'When the on-chain mint opens'}\n` +
       `• <b>Gas:</b> Paid from the approved sniper wallet\n\n` +
       `<i>Nothing will be armed or minted until you press Confirm Auto-Mint.</i>`,
       [[
-        { text: '✅ Confirm Auto-Mint', callback_data: 'arm:confirm' },
-        { text: '❌ Cancel', callback_data: 'arm:cancel' }
+        { text: `✅ Confirm Auto-Mint (${qty} NFT${qty > 1 ? 's' : ''})`, callback_data: `arm:confirm:${norm}:${qty}` },
+        { text: '❌ Cancel', callback_data: `arm:cancel:${norm}` }
       ]]
     );
   }
@@ -1272,6 +1479,18 @@ export class CommandHandler {
         `🟢 <b>Network:</b> Robinhood Chain (4663)\n\n` +
         `<i>Deposit ETH to this address on Robinhood Chain to start sniping drops!</i>`,
         this.getMainMenuButtons()
+      );
+      return;
+    }
+
+    if (callback.data === 'cmd:verifyaccess') {
+      state.flow = { type: 'verifyaccess' };
+      await this.telegram.sendMessage(
+        chatId,
+        `✅ <b>Verify Your Payment</b>\n\n` +
+        `Drop your transaction hash or paste your Blockscout URL below:\n\n` +
+        `Example:\n<code>0xabc123...def456</code>\n\n` +
+        `Or send /cancel to go back.`
       );
       return;
     }
@@ -1303,7 +1522,7 @@ export class CommandHandler {
     }
 
     const wallet = await this.getUserWallet(userKey);
-    if (!wallet && callback.data !== 'cmd:help' && callback.data !== 'cmd:cancel') {
+    if (!wallet && callback.data !== 'cmd:help' && callback.data !== 'cmd:cancel' && callback.data !== 'cmd:verifyaccess') {
       await this.telegram.sendMessage(
         chatId,
         `⚠️ You haven't connected a wallet yet. Choose an option below to start:`,
@@ -1326,20 +1545,29 @@ export class CommandHandler {
 
     if (callback.data && callback.data.startsWith('q:')) {
       if (!wallet) return;
-      const target = await this.store.getTarget(userKey);
+      const parts = callback.data.split(':');
+      const action = parts[1];
+      const targetAddr = parts[2] || state.currentContract;
+      const target = await this.store.getTarget(userKey, targetAddr);
       const maxLimit = target?.metadata?.maxPerWallet ? parseInt(target.metadata.maxPerWallet, 10) : 10;
-      const action = callback.data.slice(2);
+      const currentQty = state.targetQty ?? (target?.metadata?.quantity ? parseInt(target.metadata.quantity, 10) : 1);
+      let newQty = currentQty;
       if (action === 'prev') {
-        state.targetQty = Math.max(1, (state.targetQty || 1) - 1);
+        newQty = Math.max(1, currentQty - 1);
       } else if (action === 'next') {
-        state.targetQty = Math.min(maxLimit, (state.targetQty || 1) + 1);
+        newQty = Math.min(maxLimit, currentQty + 1);
       } else {
         const parsed = parseInt(action, 10);
         if (!isNaN(parsed) && parsed > 0) {
-          state.targetQty = Math.min(maxLimit, parsed);
+          newQty = Math.min(maxLimit, parsed);
         }
       }
-      await this.sendSniperSetupCard(chatId, userKey, state, wallet.address, callback.message?.message_id);
+      state.targetQty = newQty;
+      if (target) {
+        const meta = { ...(target.metadata ?? {}), quantity: String(newQty) };
+        await this.store.stageTarget(userKey, target.contractAddress, target.schemaId, target.pricePerNft, target.isLive, meta);
+      }
+      await this.sendSniperSetupCard(chatId, userKey, state, wallet.address, callback.message?.message_id, target?.contractAddress);
       return;
     }
 
@@ -1351,37 +1579,49 @@ export class CommandHandler {
       return;
     }
 
-    if (callback.data === 'arm:confirm') {
+    if (callback.data && (callback.data === 'arm:confirm' || callback.data.startsWith('arm:confirm:'))) {
       if (!wallet) return;
-      const target = await this.store.getTarget(userKey);
+      const parts = callback.data.split(':');
+      const targetAddr = parts[2] || state.currentContract;
+      const explicitQty = parts[3] ? parseInt(parts[3], 10) : undefined;
+      const target = await this.store.getTarget(userKey, targetAddr);
       if (!target || target.metadata?.approvalStatus !== 'pending') {
-        await this.telegram.sendMessage(chatId, '⚠️ This approval has expired. Prepare the contract again.');
+        await this.telegram.sendMessage(chatId, '⚠️ This approval has expired or was already confirmed. Prepare the contract again.');
         return;
+      }
+      if (explicitQty && explicitQty > 0) {
+        target.metadata = { ...(target.metadata ?? {}), quantity: String(explicitQty) };
+        await this.store.stageTarget(userKey, target.contractAddress, target.schemaId, target.pricePerNft, target.isLive, target.metadata);
       }
       if (getPriceStatus(target.pricePerNft, target.metadata) === 'unavailable') {
         await this.telegram.sendMessage(chatId, '⚠️ Mint price is unavailable. The target was not approved.');
         return;
       }
-      if (!(await this.store.confirmTarget(userKey))) {
+      if (!(await this.store.confirmTarget(userKey, target.contractAddress))) {
         await this.telegram.sendMessage(chatId, '⚠️ Approval could not be saved. Nothing was armed.');
         return;
       }
+      const confirmedQty = target.metadata?.quantity || '1';
       state.monitoring = true;
       await this.telegram.sendMessage(
         chatId,
-        `✅ <b>Auto-Mint Armed</b>\n\n` +
+        `✅ <b>Auto-Mint Armed & Scheduled!</b>\n\n` +
+        `• <b>Collection:</b> ${target.metadata?.name || 'Robinhood NFT Drop'}\n` +
         `• <b>Target:</b> <code>${target.contractAddress}</code>\n` +
-        `• <b>Quantity:</b> ${target.metadata?.quantity || '1'}\n` +
+        `• <b>Quantity:</b> <b>${confirmedQty} NFT${Number(confirmedQty) > 1 ? 's' : ''}</b>\n` +
         `• <b>Status:</b> 🟢 Armed and monitoring the on-chain mint\n` +
         `• <b>Gas:</b> Paid from the approved sniper wallet\n\n` +
-        `The Worker will trigger the configured executor when the on-chain mint opens.`,
+        `<i>The sniper engine is monitoring this drop and will strike the exact millisecond it opens! View all armed drops with /schedules.</i>`,
         this.getMainMenuButtons()
       );
       return;
     }
 
-    if (callback.data === 'arm:cancel') {
-      const target = await this.store.getTarget(userKey);
+    if (callback.data && (callback.data === 'arm:cancel' || callback.data.startsWith('arm:cancel:'))) {
+      const targetAddr = callback.data.startsWith('arm:cancel:')
+        ? callback.data.replace('arm:cancel:', '')
+        : state.currentContract;
+      const target = await this.store.getTarget(userKey, targetAddr);
       if (target && target.metadata?.approvalStatus === 'pending') {
         const metadata = { ...(target.metadata ?? {}) };
         delete metadata.approvalStatus;
@@ -1393,14 +1633,25 @@ export class CommandHandler {
       return;
     }
 
-    if (callback.data === 'arm' || (callback.data && callback.data.startsWith('cmd:confirmtarget'))) {
+    if (callback.data && (callback.data === 'arm' || callback.data.startsWith('arm:') || callback.data.startsWith('cmd:confirmtarget'))) {
       if (!wallet) return;
-      const target = await this.store.getTarget(userKey);
+      let targetAddr = state.currentContract as string | undefined;
+      let explicitQty: number | undefined;
+      if (callback.data.startsWith('arm:')) {
+        const parts = callback.data.split(':');
+        if (parts[1] && parts[1] !== 'confirm' && parts[1] !== 'cancel') {
+          targetAddr = parts[1];
+        }
+        if (parts[2]) {
+          explicitQty = parseInt(parts[2], 10);
+        }
+      }
+      const target = await this.store.getTarget(userKey, targetAddr);
       if (!target) {
         await this.telegram.sendMessage(chatId, 'No target waiting. Drop a contract address first.');
         return;
       }
-      await this.requestAutoMintApproval(chatId, userKey, state, target);
+      await this.requestAutoMintApproval(chatId, userKey, state, target, explicitQty);
       return;
     }
 
@@ -1409,31 +1660,85 @@ export class CommandHandler {
       return;
     }
 
-    if (callback.data === 'cmd:delschedule') {
-      await this.store.removeTarget(userKey);
-      state.monitoring = false;
-      state.targetQty = undefined;
-      state.targetTimeMs = undefined;
+    if (callback.data && (callback.data === 'cmd:delschedule' || callback.data.startsWith('cmd:del:'))) {
+      const delParam = callback.data.startsWith('cmd:del:') ? callback.data.replace('cmd:del:', '') : 'all';
+      if (delParam === 'all') {
+        await this.store.removeTarget(userKey);
+        state.monitoring = false;
+        await this.telegram.sendMessage(chatId, '🗑 <b>All scheduled drop snipers have been cancelled and removed.</b>', this.getMainMenuButtons());
+      } else {
+        await this.store.removeTarget(userKey, delParam);
+        await this.telegram.sendMessage(chatId, `🗑 <b>Scheduled drop <code>${delParam}</code> cancelled and removed.</b>`);
+        await this.renderSchedulesCard(chatId, userKey);
+      }
+      return;
+    }
+
+    if (callback.data === 'cmd:admin') {
+      const isAdmin = this.config.adminUserIds.includes(userKey);
+      if (!isAdmin) {
+        await this.telegram.sendMessage(chatId, '⛔️ Only administrators can access admin tools.');
+        return;
+      }
+      const users = this.store.listEntitlements ? await this.store.listEntitlements() : [];
+      const text = users.length
+        ? users.map((user) => `${user.status === 'active' ? '✅' : '⛔️'} <code>${user.userId}</code>${user.username ? ` @${user.username}` : ''} — ${user.source}`).join('\n')
+        : 'No users found.';
       await this.telegram.sendMessage(
         chatId,
-        '🗑 <b>Scheduled drop sniper has been cancelled and removed.</b>',
-        this.getMainMenuButtons()
+        `👑 <b>Admin Dashboard — Authorized Users:</b>\n\n${text}\n\n<i>Manage access permissions:</i>`,
+        [
+          [
+            { text: '➕ Add User', callback_data: 'cmd:adduser' },
+            { text: '➖ Remove User', callback_data: 'cmd:removeuser' }
+          ],
+          [
+            { text: '🔙 Menu', callback_data: 'cmd:menu' }
+          ]
+        ]
+      );
+      return;
+    }
+
+    if (callback.data === 'cmd:adduser') {
+      const isAdmin = this.config.adminUserIds.includes(userKey);
+      if (!isAdmin) return;
+      state.flow = { type: 'adduser' };
+      await this.telegram.sendMessage(
+        chatId,
+        `👤 <b>Admin: Authorize User Access</b>\n\n` +
+        `Send the Telegram Numeric User ID or @username to grant access:\n\n` +
+        `Example: <code>123456789</code> or <code>@username</code>\n\n` +
+        `Or send /cancel.`
+      );
+      return;
+    }
+
+    if (callback.data === 'cmd:removeuser') {
+      const isAdmin = this.config.adminUserIds.includes(userKey);
+      if (!isAdmin) return;
+      state.flow = { type: 'removeuser' };
+      await this.telegram.sendMessage(
+        chatId,
+        `👤 <b>Admin: Revoke User Access</b>\n\n` +
+        `Send the Telegram Numeric User ID or @username to revoke access:\n\n` +
+        `Example: <code>123456789</code> or <code>@username</code>\n\n` +
+        `Or send /cancel.`
       );
       return;
     }
 
     if (callback.data === 'cmd:menu') {
+      const isAdmin = this.config.adminUserIds.includes(userKey);
       if (wallet) {
-        const liveBal = await this.executor.getBalance(wallet.address);
         await this.telegram.sendMessage(
           chatId,
           `⚡️ <b>Mintobot — Robinhood Chain Sniper (4663)</b>\n\n` +
           `💳 <b>Sniper Wallet:</b>\n<code>${wallet.address}</code>\n\n` +
-          `💰 <b>Wallet Balance:</b> <b>${await formatEthUsd(liveBal || '0')}</b>\n` +
           `🟢 <b>Network:</b> Robinhood Chain Mainnet (4663)\n` +
           `⚡️ <b>Execution:</b> Direct Sub-Second Execution\n\n` +
           `<i>Drop any NFT contract address (CA) directly into this chat to stage & auto-mint instantly!</i>`,
-          this.getMainMenuButtons()
+          this.getMainMenuButtons(isAdmin)
         );
       }
       return;

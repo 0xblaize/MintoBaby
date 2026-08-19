@@ -40,13 +40,14 @@ export interface IStore {
   getWallet(userId: string): Promise<{ address?: string; walletId?: string } | undefined> | { address?: string; walletId?: string } | undefined;
 
   stageTarget(userId: string, address: string, schemaId: string, pricePerNft: bigint, isLive: boolean, metadata?: Record<string, string | undefined>): Promise<void> | void;
-  confirmTarget(userId: string): Promise<boolean> | boolean;
-  claimTarget?(userId: string): Promise<boolean> | boolean;
-  releaseTarget?(userId: string): Promise<boolean> | boolean;
-  recordTargetBroadcast?(userId: string, txHash: string, functionSignature: string): Promise<boolean> | boolean;
-  setTargetSchedule?(userId: string, scheduledTimeMs?: number): Promise<boolean> | boolean;
-  getTarget(userId: string): Promise<StoredTarget | undefined> | StoredTarget | undefined;
-  removeTarget(userId: string): Promise<void> | void;
+  confirmTarget(userId: string, contractAddress?: string): Promise<boolean> | boolean;
+  claimTarget?(userId: string, contractAddress?: string): Promise<boolean> | boolean;
+  releaseTarget?(userId: string, contractAddress?: string): Promise<boolean> | boolean;
+  recordTargetBroadcast?(userId: string, contractAddress: string, txHash: string, functionSignature: string): Promise<boolean> | boolean;
+  setTargetSchedule?(userId: string, contractAddress: string, scheduledTimeMs?: number): Promise<boolean> | boolean;
+  getTarget(userId: string, contractAddress?: string): Promise<StoredTarget | undefined> | StoredTarget | undefined;
+  getUserTargets?(userId: string): Promise<Array<StoredTarget>> | Array<StoredTarget>;
+  removeTarget(userId: string, contractAddress?: string): Promise<void> | void;
   getAllActiveTargets(): Promise<Array<{ userId: string } & StoredTarget>> | Array<{ userId: string } & StoredTarget>;
 
   saveInvite(code: string, createdBy: string): void;
@@ -69,7 +70,10 @@ export class MemoryStore implements IStore {
   private readonly state = new Map<string, string>();
   private readonly userWallets = new Map<string, { address: string; walletId?: string }>();
   private readonly encryptedWallets = new Map<string, EncryptedWalletData>();
+  // Keyed by `${userId}:${contractAddress.toLowerCase()}`
   private readonly targetProfiles = new Map<string, StoredTarget>();
+  // Tracks most recently staged/touched contract per user for legacy single-arg callers
+  private readonly lastUserTarget = new Map<string, string>();
   private readonly inviteCodes = new Map<string, { code: string; createdBy: string; usedBy?: string }>();
   private readonly allowedUsers = new Set<string>();
   private readonly processedEvents = new Set<string>();
@@ -77,15 +81,42 @@ export class MemoryStore implements IStore {
   private readonly usernames = new Map<string, string>();
   private readonly consumedPayments = new Set<string>();
 
-  removeTarget(userId: string): void {
-    this.targetProfiles.delete(userId);
+  private targetKey(userId: string, contractAddress: string): string {
+    return `${userId}:${contractAddress.toLowerCase()}`;
+  }
+
+  removeTarget(userId: string, contractAddress?: string): void {
+    if (contractAddress) {
+      this.targetProfiles.delete(this.targetKey(userId, contractAddress));
+      if (this.lastUserTarget.get(userId)?.toLowerCase() === contractAddress.toLowerCase()) {
+        this.lastUserTarget.delete(userId);
+      }
+    } else {
+      for (const key of Array.from(this.targetProfiles.keys())) {
+        if (key.startsWith(`${userId}:`)) {
+          this.targetProfiles.delete(key);
+        }
+      }
+      this.lastUserTarget.delete(userId);
+    }
   }
 
   getAllActiveTargets(): Promise<Array<{ userId: string } & StoredTarget>> | Array<{ userId: string } & StoredTarget> {
     const list: Array<{ userId: string } & StoredTarget> = [];
-    for (const [userId, target] of this.targetProfiles.entries()) {
+    for (const [key, target] of this.targetProfiles.entries()) {
+      const userId = key.split(':')[0];
       if (target.verified && target.metadata?.approvalStatus === 'approved' && target.metadata?.executionStatus !== 'claimed') {
         list.push({ userId, ...target });
+      }
+    }
+    return list;
+  }
+
+  getUserTargets(userId: string): Array<StoredTarget> {
+    const list: StoredTarget[] = [];
+    for (const [key, target] of this.targetProfiles.entries()) {
+      if (key.startsWith(`${userId}:`)) {
+        list.push(target);
       }
     }
     return list;
@@ -134,40 +165,42 @@ export class MemoryStore implements IStore {
   }
 
   stageTarget(userId: string, address: string, schemaId: string, pricePerNft: bigint, isLive: boolean, metadata?: Record<string, string | undefined>): void {
-    this.targetProfiles.set(userId, { contractAddress: address, schemaId, pricePerNft, isLive, verified: false, metadata });
+    const key = this.targetKey(userId, address);
+    this.targetProfiles.set(key, { contractAddress: address, schemaId, pricePerNft, isLive, verified: false, metadata });
+    this.lastUserTarget.set(userId, address.toLowerCase());
   }
 
-  confirmTarget(userId: string): Promise<boolean> | boolean {
-    const target = this.targetProfiles.get(userId);
+  confirmTarget(userId: string, contractAddress?: string): Promise<boolean> | boolean {
+    const target = this.getTarget(userId, contractAddress);
     if (!target || target.metadata?.approvalStatus !== 'pending') return false;
     target.verified = true;
     target.metadata = { ...(target.metadata ?? {}), approvalStatus: 'approved', executionStatus: 'ready' };
     return true;
   }
 
-  claimTarget(userId: string): Promise<boolean> | boolean {
-    const target = this.targetProfiles.get(userId);
+  claimTarget(userId: string, contractAddress?: string): Promise<boolean> | boolean {
+    const target = this.getTarget(userId, contractAddress);
     if (!target || !target.verified || target.metadata?.approvalStatus !== 'approved' || target.metadata?.executionStatus === 'claimed') return false;
     target.metadata = { ...(target.metadata ?? {}), executionStatus: 'claimed' };
     return true;
   }
 
-  releaseTarget(userId: string): Promise<boolean> | boolean {
-    const target = this.targetProfiles.get(userId);
+  releaseTarget(userId: string, contractAddress?: string): Promise<boolean> | boolean {
+    const target = this.getTarget(userId, contractAddress);
     if (!target || target.metadata?.executionStatus !== 'claimed') return false;
     target.metadata = { ...(target.metadata ?? {}), executionStatus: 'ready' };
     return true;
   }
 
-  recordTargetBroadcast(userId: string, txHash: string, functionSignature: string): Promise<boolean> | boolean {
-    const target = this.targetProfiles.get(userId);
+  recordTargetBroadcast(userId: string, contractAddress: string, txHash: string, functionSignature: string): Promise<boolean> | boolean {
+    const target = this.getTarget(userId, contractAddress);
     if (!target || target.metadata?.executionStatus !== 'claimed') return false;
     target.metadata = { ...(target.metadata ?? {}), executionStatus: 'broadcast', txHash, mintFunction: functionSignature };
     return true;
   }
 
-  setTargetSchedule(userId: string, scheduledTimeMs?: number): Promise<boolean> | boolean {
-    const target = this.targetProfiles.get(userId);
+  setTargetSchedule(userId: string, contractAddress: string, scheduledTimeMs?: number): Promise<boolean> | boolean {
+    const target = this.getTarget(userId, contractAddress);
     if (!target) return false;
     const metadata = { ...(target.metadata ?? {}) };
     if (scheduledTimeMs && scheduledTimeMs > 0) {
@@ -181,8 +214,21 @@ export class MemoryStore implements IStore {
     return true;
   }
 
-  getTarget(userId: string): Promise<{ contractAddress: string; schemaId: string; pricePerNft: bigint; isLive: boolean; verified: boolean; metadata?: Record<string, string | undefined> } | undefined> | { contractAddress: string; schemaId: string; pricePerNft: bigint; isLive: boolean; verified: boolean; metadata?: Record<string, string | undefined> } | undefined {
-    return this.targetProfiles.get(userId);
+  getTarget(userId: string, contractAddress?: string): StoredTarget | undefined {
+    if (contractAddress) {
+      return this.targetProfiles.get(this.targetKey(userId, contractAddress));
+    }
+    const lastAddr = this.lastUserTarget.get(userId);
+    if (lastAddr) {
+      const found = this.targetProfiles.get(this.targetKey(userId, lastAddr));
+      if (found) return found;
+    }
+    for (const [key, target] of this.targetProfiles.entries()) {
+      if (key.startsWith(`${userId}:`)) {
+        return target;
+      }
+    }
+    return undefined;
   }
 
   saveInvite(code: string, createdBy: string): void {

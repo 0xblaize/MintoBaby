@@ -18,7 +18,7 @@ AUTO_MINT_USER_PAID_EXECUTOR = "true"
 # ── GitHub Actions sniper engine ──────────────────────────────────────────────
 # GITHUB_PAT is secret — set via: npx wrangler secret put GITHUB_PAT
 GITHUB_USER = "0xblaize"
-GITHUB_SNIPER_REPO = "mintobaby-sniper"
+GITHUB_SNIPER_REPO = "MintoBaby"
 
 [[d1_databases]]
 binding = "DB"
