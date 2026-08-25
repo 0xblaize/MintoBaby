@@ -143,8 +143,11 @@ export class ChainExecutor {
       }
 
       const fnCandidates = [
+        { sig: 'mintTo(address,uint256)', fn: 'mintTo', args: [wallet.address, BigInt(quantity)] },
         { sig: 'mint(uint256)', fn: 'mint', args: [BigInt(quantity)] },
         { sig: 'publicMint(uint256)', fn: 'publicMint', args: [BigInt(quantity)] },
+        { sig: 'mint(address,uint256)', fn: 'mint', args: [wallet.address, BigInt(quantity)] },
+        { sig: 'publicMint(address,uint256)', fn: 'publicMint', args: [wallet.address, BigInt(quantity)] },
         { sig: 'mint()', fn: 'mint', args: [] },
         { sig: 'publicMint()', fn: 'publicMint', args: [] },
         { sig: 'claim(uint256)', fn: 'claim', args: [BigInt(quantity)] },
