@@ -118,6 +118,7 @@ export default function MintoBabyStudio() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [selectedAuthPlan, setSelectedAuthPlan] = useState('pro');
+  const [pricingCycle, setPricingCycle] = useState<'weekly' | 'monthly' | 'yearly'>('weekly');
   const [selectedProject, setSelectedProject] = useState<ProjectData | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeHeroCard, setActiveHeroCard] = useState<number | null>(null);
@@ -135,8 +136,9 @@ export default function MintoBabyStudio() {
     setSelectedProject(proj);
   };
 
-  const openAuthWithPlan = (planId: string) => {
+  const openAuthWithPlan = (planId: string, cycle: 'weekly' | 'monthly' | 'yearly' = pricingCycle) => {
     setSelectedAuthPlan(planId);
+    setPricingCycle(cycle);
     setIsAuthModalOpen(true);
   };
 
@@ -870,9 +872,38 @@ export default function MintoBabyStudio() {
             >
               Unlock Paid Matrix Engine Access
             </h2>
-            <p style={{ color: '#827e99', fontSize: 16, fontWeight: 300, maxWidth: 640, margin: '0 auto' }}>
+            <p style={{ color: '#827e99', fontSize: 16, fontWeight: 300, maxWidth: 640, margin: '0 auto 24px auto' }}>
               Sign in with Google, choose your paid subscription plan, and complete checkout to access the MINTOBABY Bot Console.
             </p>
+
+            {/* Billing Cycle Pill Selector */}
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <div style={{ display: 'inline-flex', background: '#14131a', border: '1px solid rgba(107,60,232,0.4)', borderRadius: 30, padding: 4, boxShadow: '0 0 20px rgba(107,60,232,0.2)' }}>
+                {[
+                  { id: 'weekly', label: 'Weekly Billing' },
+                  { id: 'monthly', label: 'Monthly' },
+                  { id: 'yearly', label: 'Yearly (-20% Off)' },
+                ].map((cycle) => (
+                  <button
+                    key={cycle.id}
+                    onClick={() => setPricingCycle(cycle.id as 'weekly' | 'monthly' | 'yearly')}
+                    style={{
+                      background: pricingCycle === cycle.id ? '#6b3ce8' : 'transparent',
+                      color: pricingCycle === cycle.id ? '#ffffff' : '#827e99',
+                      border: 'none',
+                      borderRadius: 24,
+                      padding: '10px 22px',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      transition: 'all 0.25s ease',
+                    }}
+                  >
+                    {cycle.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* 3 Pricing Cards Grid */}
@@ -896,7 +927,7 @@ export default function MintoBabyStudio() {
                   STARTER BOT PASS
                 </div>
                 <div className="font-heading" style={{ fontSize: 48, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
-                  $49 <span style={{ fontSize: 16, color: '#827e99', fontWeight: 400 }}>/ month</span>
+                  ${pricingCycle === 'weekly' ? '15' : pricingCycle === 'monthly' ? '49' : '490'} <span style={{ fontSize: 16, color: '#827e99', fontWeight: 400 }}>/ {pricingCycle === 'weekly' ? 'week' : pricingCycle === 'monthly' ? 'month' : 'year'}</span>
                 </div>
                 <p style={{ color: '#827e99', fontSize: 14, marginBottom: 24 }}>
                   Essential wallet sniper & monitoring engine for active web3 traders.
@@ -913,7 +944,7 @@ export default function MintoBabyStudio() {
               </div>
 
               <button
-                onClick={() => openAuthWithPlan('starter')}
+                onClick={() => openAuthWithPlan('starter', pricingCycle)}
                 style={{
                   width: '100%',
                   background: '#1c1b24',
@@ -927,7 +958,7 @@ export default function MintoBabyStudio() {
                   transition: 'all 0.2s'
                 }}
               >
-                Google Login & Buy Sub ($49) →
+                Google Login & Buy Sub (${pricingCycle === 'weekly' ? '15/wk' : pricingCycle === 'monthly' ? '49/mo' : '490/yr'}) →
               </button>
             </div>
 
@@ -954,7 +985,7 @@ export default function MintoBabyStudio() {
                   PRO BOT DOMINATOR PASS
                 </div>
                 <div className="font-heading" style={{ fontSize: 48, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
-                  $149 <span style={{ fontSize: 16, color: '#827e99', fontWeight: 400 }}>/ month</span>
+                  ${pricingCycle === 'weekly' ? '45' : pricingCycle === 'monthly' ? '149' : '1490'} <span style={{ fontSize: 16, color: '#827e99', fontWeight: 400 }}>/ {pricingCycle === 'weekly' ? 'week' : pricingCycle === 'monthly' ? 'month' : 'year'}</span>
                 </div>
                 <p style={{ color: '#827e99', fontSize: 14, marginBottom: 24 }}>
                   Full multi-chain auto-mint matrix executor with 10ms priority execution.
@@ -971,7 +1002,7 @@ export default function MintoBabyStudio() {
               </div>
 
               <button
-                onClick={() => openAuthWithPlan('pro')}
+                onClick={() => openAuthWithPlan('pro', pricingCycle)}
                 style={{
                   width: '100%',
                   background: '#6b3ce8',
@@ -986,7 +1017,7 @@ export default function MintoBabyStudio() {
                   transition: 'all 0.2s'
                 }}
               >
-                Google Login & Buy Sub ($149) →
+                Google Login & Buy Sub (${pricingCycle === 'weekly' ? '45/wk' : pricingCycle === 'monthly' ? '149/mo' : '1490/yr'}) →
               </button>
             </div>
 
@@ -1008,7 +1039,7 @@ export default function MintoBabyStudio() {
                   ENTERPRISE BOT TIER
                 </div>
                 <div className="font-heading" style={{ fontSize: 48, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
-                  $399 <span style={{ fontSize: 16, color: '#827e99', fontWeight: 400 }}>/ month</span>
+                  ${pricingCycle === 'weekly' ? '119' : pricingCycle === 'monthly' ? '399' : '3990'} <span style={{ fontSize: 16, color: '#827e99', fontWeight: 400 }}>/ {pricingCycle === 'weekly' ? 'week' : pricingCycle === 'monthly' ? 'month' : 'year'}</span>
                 </div>
                 <p style={{ color: '#827e99', fontSize: 14, marginBottom: 24 }}>
                   Enterprise design system, custom smart contracts, and dedicated engineering team.
@@ -1025,7 +1056,7 @@ export default function MintoBabyStudio() {
               </div>
 
               <button
-                onClick={() => openAuthWithPlan('agency')}
+                onClick={() => openAuthWithPlan('enterprise', pricingCycle)}
                 style={{
                   width: '100%',
                   background: '#1c1b24',
@@ -1039,7 +1070,7 @@ export default function MintoBabyStudio() {
                   transition: 'all 0.2s'
                 }}
               >
-                Google Login & Buy Sub ($399) →
+                Google Login & Buy Sub (${pricingCycle === 'weekly' ? '119/wk' : pricingCycle === 'monthly' ? '399/mo' : '3990/yr'}) →
               </button>
             </div>
 
@@ -1667,7 +1698,7 @@ export default function MintoBabyStudio() {
       {/* Interactive Modals */}
       <StartProjectModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
       <CaseStudyModal project={selectedProject} onClose={() => setSelectedProject(null)} />
-      <AuthSubscribeModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} selectedPlanTier={selectedAuthPlan} />
+      <AuthSubscribeModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} selectedPlanTier={selectedAuthPlan} initialBillingCycle={pricingCycle} />
 
       {/* Global Inline Styles */}
       <style>{`

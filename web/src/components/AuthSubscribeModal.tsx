@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { IconX, IconCheck, IconBolt, IconLock, IconCreditCard } from './MintoIcons';
 
@@ -6,17 +6,26 @@ interface AuthSubscribeModalProps {
   isOpen: boolean;
   onClose: () => void;
   selectedPlanTier?: string;
+  initialBillingCycle?: 'weekly' | 'monthly' | 'yearly';
 }
 
-export function AuthSubscribeModal({ isOpen, onClose, selectedPlanTier = 'pro' }: AuthSubscribeModalProps) {
+export function AuthSubscribeModal({
+  isOpen,
+  onClose,
+  selectedPlanTier = 'pro',
+  initialBillingCycle = 'weekly'
+}: AuthSubscribeModalProps) {
   const navigate = useNavigate();
   const [step, setStep] = useState<'auth' | 'payment' | 'success'>('auth');
   const [plan, setPlan] = useState<string>(selectedPlanTier);
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
-  
+  const [billingCycle, setBillingCycle] = useState<'weekly' | 'monthly' | 'yearly'>(initialBillingCycle);
+
+  // Google Account Picker Modal state
+  const [showGooglePicker, setShowGooglePicker] = useState(false);
+
   // Auth state
   const [email, setEmail] = useState('');
-  const [userLogged, setUserLogged] = useState<{ name: string; email: string; avatar: string } | null>(null);
+  const [userLogged, setUserLogged] = useState<{ name: string; email: string; avatar: string; provider: string } | null>(null);
 
   // Payment state
   const [cardNumber, setCardNumber] = useState('');
@@ -25,12 +34,35 @@ export function AuthSubscribeModal({ isOpen, onClose, selectedPlanTier = 'pro' }
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'crypto'>('card');
   const [processing, setProcessing] = useState(false);
 
+  // Sync selectedPlanTier when props change
+  useEffect(() => {
+    setPlan(selectedPlanTier);
+  }, [selectedPlanTier]);
+
+  useEffect(() => {
+    setBillingCycle(initialBillingCycle);
+  }, [initialBillingCycle]);
+
+  // Check existing session
+  useEffect(() => {
+    const existing = localStorage.getItem('mintobaby_user');
+    if (existing) {
+      try {
+        const parsed = JSON.parse(existing);
+        setUserLogged(parsed);
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, []);
+
   if (!isOpen) return null;
 
   const plans = [
     {
       id: 'starter',
       name: 'Starter Pass',
+      priceWeekly: 15,
       priceMonthly: 49,
       priceYearly: 490,
       badge: 'Paid Only',
@@ -39,6 +71,7 @@ export function AuthSubscribeModal({ isOpen, onClose, selectedPlanTier = 'pro' }
     {
       id: 'pro',
       name: 'Pro Pass',
+      priceWeekly: 45,
       priceMonthly: 149,
       priceYearly: 1490,
       badge: 'MOST POPULAR',
@@ -47,6 +80,7 @@ export function AuthSubscribeModal({ isOpen, onClose, selectedPlanTier = 'pro' }
     {
       id: 'enterprise',
       name: 'Enterprise Tier',
+      priceWeekly: 119,
       priceMonthly: 399,
       priceYearly: 3990,
       badge: 'ENTERPRISE',
@@ -55,38 +89,75 @@ export function AuthSubscribeModal({ isOpen, onClose, selectedPlanTier = 'pro' }
   ];
 
   const currentPlanObj = plans.find(p => p.id === plan) || plans[1];
-  const price = billingCycle === 'monthly' ? currentPlanObj.priceMonthly : Math.round(currentPlanObj.priceYearly / 12);
+  
+  const getDisplayPrice = () => {
+    if (billingCycle === 'weekly') return { amount: currentPlanObj.priceWeekly, unit: '/ week' };
+    if (billingCycle === 'monthly') return { amount: currentPlanObj.priceMonthly, unit: '/ month' };
+    return { amount: Math.round(currentPlanObj.priceYearly / 12), unit: '/ month (billed yearly)' };
+  };
 
-  const handleGoogleLogin = () => {
-    setUserLogged({
-      name: 'Alex Vance',
-      email: 'alex.vance@example.com',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'
-    });
+  const currentPriceInfo = getDisplayPrice();
+
+  // Complete Google Account Authentication Handler
+  const handleGoogleAccountSelect = (selectedAccount: { name: string; email: string; avatar: string }) => {
+    const userSession = {
+      name: selectedAccount.name,
+      email: selectedAccount.email,
+      avatar: selectedAccount.avatar,
+      provider: 'google',
+      token: 'g_oauth_' + Math.random().toString(36).substring(2, 12),
+      authenticatedAt: new Date().toISOString()
+    };
+
+    localStorage.setItem('mintobaby_user', JSON.stringify(userSession));
+    setUserLogged(userSession);
+    setShowGooglePicker(false);
     setStep('payment');
   };
 
   const handleEmailAuth = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
-    setUserLogged({
-      name: email.split('@')[0],
+    const nameStr = email.split('@')[0];
+    const capitalized = nameStr.charAt(0).toUpperCase() + nameStr.slice(1);
+    
+    const userSession = {
+      name: capitalized,
       email: email,
-      avatar: ''
-    });
+      avatar: '',
+      provider: 'email',
+      token: 'em_auth_' + Math.random().toString(36).substring(2, 12),
+      authenticatedAt: new Date().toISOString()
+    };
+
+    localStorage.setItem('mintobaby_user', JSON.stringify(userSession));
+    setUserLogged(userSession);
     setStep('payment');
   };
 
   const handlePaymentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setProcessing(true);
+
+    const subscriptionRecord = {
+      plan: currentPlanObj.id,
+      planName: currentPlanObj.name,
+      billingCycle,
+      price: currentPriceInfo.amount,
+      paymentMethod,
+      purchasedAt: new Date().toISOString(),
+      active: true
+    };
+
+    localStorage.setItem('mintobaby_subscription', JSON.stringify(subscriptionRecord));
+
     setTimeout(() => {
       setProcessing(false);
       setStep('success');
       setTimeout(() => {
         onClose();
         navigate('/dashboard');
-      }, 1500);
+      }, 1400);
     }, 1200);
   };
 
@@ -100,7 +171,7 @@ export function AuthSubscribeModal({ isOpen, onClose, selectedPlanTier = 'pro' }
         backdropFilter: 'blur(16px)',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center',
+        justify: 'center',
         padding: '20px'
       }}
       onClick={onClose}
@@ -136,7 +207,7 @@ export function AuthSubscribeModal({ isOpen, onClose, selectedPlanTier = 'pro' }
             borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
+            justify: 'center',
             cursor: 'pointer'
           }}
         >
@@ -184,7 +255,7 @@ export function AuthSubscribeModal({ isOpen, onClose, selectedPlanTier = 'pro' }
                 Sign In to MINTOBABY
               </h2>
               <p style={{ color: '#827e99', fontSize: 14, fontWeight: 300 }}>
-                Sign in with Google to choose your paid subscription and access the MintoBaby Matrix Engine.
+                Sign in with Google OAuth to choose your paid subscription and access the MintoBaby Matrix Engine.
               </p>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(220,20,60,0.12)', border: '1px solid rgba(220,20,60,0.3)', borderRadius: 8, padding: '8px 12px', marginTop: 12, fontSize: 11, color: '#ff6b8b', fontWeight: 600 }}>
                 <IconLock size={14} color="#ff6b8b" />
@@ -194,7 +265,7 @@ export function AuthSubscribeModal({ isOpen, onClose, selectedPlanTier = 'pro' }
 
             {/* Google Sign In Button */}
             <button
-              onClick={handleGoogleLogin}
+              onClick={() => setShowGooglePicker(true)}
               style={{
                 width: '100%',
                 background: '#ffffff',
@@ -207,7 +278,7 @@ export function AuthSubscribeModal({ isOpen, onClose, selectedPlanTier = 'pro' }
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
+                justify: 'center',
                 gap: 12,
                 boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
                 marginBottom: 20,
@@ -291,11 +362,71 @@ export function AuthSubscribeModal({ isOpen, onClose, selectedPlanTier = 'pro' }
                 </div>
               </div>
               <span style={{ fontSize: 10, background: '#00ff88', color: '#0a0a0f', fontWeight: 700, padding: '2px 8px', borderRadius: 10 }}>
-                AUTHENTICATED
+                GOOGLE AUTHENTICATED
               </span>
             </div>
 
-            <h3 className="font-heading" style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>
+            {/* BILLING CYCLE SELECTOR (WEEKLY / MONTHLY / YEARLY) */}
+            <div style={{ marginBottom: 18 }}>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#827e99', marginBottom: 8 }}>
+                Select Billing Structure
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, background: '#1c1b24', padding: 4, borderRadius: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setBillingCycle('weekly')}
+                  style={{
+                    background: billingCycle === 'weekly' ? '#6b3ce8' : 'transparent',
+                    color: billingCycle === 'weekly' ? '#fff' : '#827e99',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: '8px 4px',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  Weekly Billing
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBillingCycle('monthly')}
+                  style={{
+                    background: billingCycle === 'monthly' ? '#6b3ce8' : 'transparent',
+                    color: billingCycle === 'monthly' ? '#fff' : '#827e99',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: '8px 4px',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  Monthly
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBillingCycle('yearly')}
+                  style={{
+                    background: billingCycle === 'yearly' ? '#6b3ce8' : 'transparent',
+                    color: billingCycle === 'yearly' ? '#fff' : '#827e99',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: '8px 4px',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  Yearly (-20%)
+                </button>
+              </div>
+            </div>
+
+            <h3 className="font-heading" style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>
               Select Subscription Tier
             </h3>
 
@@ -303,6 +434,9 @@ export function AuthSubscribeModal({ isOpen, onClose, selectedPlanTier = 'pro' }
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 20 }}>
               {plans.map((p) => {
                 const active = plan === p.id;
+                const pPrice = billingCycle === 'weekly' ? p.priceWeekly : billingCycle === 'monthly' ? p.priceMonthly : Math.round(p.priceYearly / 12);
+                const pUnit = billingCycle === 'weekly' ? '/wk' : '/mo';
+
                 return (
                   <button
                     key={p.id}
@@ -321,7 +455,7 @@ export function AuthSubscribeModal({ isOpen, onClose, selectedPlanTier = 'pro' }
                   >
                     <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 4 }}>{p.name.split(' ')[0]}</div>
                     <div className="font-heading" style={{ fontSize: 18, fontWeight: 700, color: active ? '#fff' : '#e0e0e0' }}>
-                      ${p.priceMonthly}<span style={{ fontSize: 10 }}>/mo</span>
+                      ${pPrice}<span style={{ fontSize: 10 }}>{pUnit}</span>
                     </div>
                   </button>
                 );
@@ -334,14 +468,14 @@ export function AuthSubscribeModal({ isOpen, onClose, selectedPlanTier = 'pro' }
                 <span className="font-heading" style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>
                   {currentPlanObj.name}
                 </span>
-                <span style={{ fontSize: 18, fontWeight: 700, color: '#6b3ce8' }}>
-                  ${price} / month
+                <span style={{ fontSize: 18, fontWeight: 700, color: '#00ff88' }}>
+                  ${currentPriceInfo.amount} {currentPriceInfo.unit}
                 </span>
               </div>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {currentPlanObj.features.slice(0, 3).map((f, i) => (
                   <li key={i} style={{ fontSize: 12, color: '#827e99', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <IconCheck size={14} color="#6b3ce8" />
+                    <IconCheck size={14} color="#00ff88" />
                     <span>{f}</span>
                   </li>
                 ))}
@@ -365,17 +499,17 @@ export function AuthSubscribeModal({ isOpen, onClose, selectedPlanTier = 'pro' }
                       borderRadius: 8,
                       padding: '10px',
                       color: paymentMethod === 'card' ? '#fff' : '#827e99',
-                      fontSize: 13,
+                      fontSize: 12,
                       fontWeight: 600,
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
+                      justify: 'center',
                       gap: 6
                     }}
                   >
                     <IconCreditCard size={16} />
-                    <span>Credit / Debit Card</span>
+                    <span>Credit Card</span>
                   </button>
                   <button
                     type="button"
@@ -387,28 +521,29 @@ export function AuthSubscribeModal({ isOpen, onClose, selectedPlanTier = 'pro' }
                       borderRadius: 8,
                       padding: '10px',
                       color: paymentMethod === 'crypto' ? '#fff' : '#827e99',
-                      fontSize: 13,
+                      fontSize: 12,
                       fontWeight: 600,
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
+                      justify: 'center',
                       gap: 6
                     }}
                   >
-                    <IconBolt size={16} color="#6b3ce8" />
-                    <span>Crypto (ETH / SOL / USDC)</span>
+                    <IconBolt size={16} />
+                    <span>Web3 Crypto (ETH/SOL)</span>
                   </button>
                 </div>
               </div>
 
               {paymentMethod === 'card' ? (
-                <div>
+                <>
                   <div style={{ marginBottom: 12 }}>
+                    <label style={{ display: 'block', fontSize: 10, color: '#827e99', marginBottom: 4 }}>Card Number</label>
                     <input
                       type="text"
                       required
-                      placeholder="Card Number (4242 •••• •••• 4242)"
+                      placeholder="4532 •••• •••• 8910"
                       value={cardNumber}
                       onChange={(e) => setCardNumber(e.target.value)}
                       style={{
@@ -416,53 +551,59 @@ export function AuthSubscribeModal({ isOpen, onClose, selectedPlanTier = 'pro' }
                         background: '#1c1b24',
                         border: '1px solid rgba(255,255,255,0.1)',
                         borderRadius: 8,
-                        padding: '12px',
+                        padding: '10px 12px',
                         color: '#fff',
                         fontSize: 13,
                         outline: 'none'
                       }}
                     />
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
-                    <input
-                      type="text"
-                      required
-                      placeholder="MM / YY"
-                      value={expiry}
-                      onChange={(e) => setExpiry(e.target.value)}
-                      style={{
-                        width: '100%',
-                        background: '#1c1b24',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        borderRadius: 8,
-                        padding: '12px',
-                        color: '#fff',
-                        fontSize: 13,
-                        outline: 'none'
-                      }}
-                    />
-                    <input
-                      type="password"
-                      required
-                      placeholder="CVC / CVV"
-                      value={cvv}
-                      onChange={(e) => setCvv(e.target.value)}
-                      style={{
-                        width: '100%',
-                        background: '#1c1b24',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        borderRadius: 8,
-                        padding: '12px',
-                        color: '#fff',
-                        fontSize: 13,
-                        outline: 'none'
-                      }}
-                    />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 10, color: '#827e99', marginBottom: 4 }}>Expiry</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="MM/YY"
+                        value={expiry}
+                        onChange={(e) => setExpiry(e.target.value)}
+                        style={{
+                          width: '100%',
+                          background: '#1c1b24',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: 8,
+                          padding: '10px 12px',
+                          color: '#fff',
+                          fontSize: 13,
+                          outline: 'none'
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 10, color: '#827e99', marginBottom: 4 }}>CVC / CVV</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="123"
+                        value={cvv}
+                        onChange={(e) => setCvv(e.target.value)}
+                        style={{
+                          width: '100%',
+                          background: '#1c1b24',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: 8,
+                          padding: '10px 12px',
+                          color: '#fff',
+                          fontSize: 13,
+                          outline: 'none'
+                        }}
+                      />
+                    </div>
                   </div>
-                </div>
+                </>
               ) : (
-                <div style={{ background: '#1c1b24', padding: '14px', borderRadius: 8, textAlign: 'center', marginBottom: 20, fontSize: 12, color: '#827e99' }}>
-                  Web3 Paywall active. Instant confirmation via Coinbase Commerce / Turnkey Vault.
+                <div style={{ background: '#1c1b24', padding: '16px', borderRadius: 8, marginBottom: 20, fontSize: 12, color: '#827e99', textAlign: 'center' }}>
+                  Direct Web3 Crypto Payment via EVM / Solana Wallet Vault.
                 </div>
               )}
 
@@ -479,35 +620,144 @@ export function AuthSubscribeModal({ isOpen, onClose, selectedPlanTier = 'pro' }
                   fontSize: 15,
                   fontWeight: 700,
                   cursor: processing ? 'not-allowed' : 'pointer',
-                  boxShadow: '0 0 25px rgba(107,60,232,0.4)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 10
+                  boxShadow: '0 0 25px rgba(107, 60, 232, 0.4)'
                 }}
               >
-                {processing ? 'Processing Secure Payment...' : `Complete Subscription ($${price}/mo) & Access Engine →`}
+                {processing ? 'Processing Secure Subscription…' : `Pay $${currentPriceInfo.amount} ${currentPriceInfo.unit} & Activate Access →`}
               </button>
             </form>
           </div>
         )}
 
-        {/* STEP 3: SUCCESS & REDIRECT */}
+        {/* STEP 3: SUCCESS */}
         {step === 'success' && (
-          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-            <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(0,255,136,0.15)', border: '2px solid #00ff88', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: '#00ff88' }}>
-              <IconCheck size={36} color="#00ff88" />
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(0,255,136,0.15)', border: '2px solid #00ff88', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+              <IconCheck size={32} color="#00ff88" />
             </div>
-
-            <h3 className="font-heading" style={{ fontSize: 26, fontWeight: 700, marginBottom: 8, color: '#fff' }}>
-              Subscription Active & Access Unlocked!
-            </h3>
+            <h2 className="font-heading" style={{ fontSize: 26, fontWeight: 700, marginBottom: 8, color: '#fff' }}>
+              Paid Subscription Activated!
+            </h2>
             <p style={{ color: '#827e99', fontSize: 14, marginBottom: 20 }}>
-              Redirecting you to the MintoBaby Matrix Engine Dashboard...
+              Welcome <strong style={{ color: '#fff' }}>{userLogged?.name}</strong>. Your MINTOBABY {currentPlanObj.name} ({billingCycle} billing) is live.
             </p>
+            <div style={{ fontSize: 12, color: '#00ff88', fontWeight: 600 }}>
+              Redirecting to MintoBaby Console Dashboard…
+            </div>
           </div>
         )}
       </div>
+
+      {/* GOOGLE ACCOUNT SELECTION MODAL */}
+      {showGooglePicker && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 10000,
+            background: 'rgba(0, 0, 0, 0.75)',
+            display: 'flex',
+            alignItems: 'center',
+            justify: 'center',
+            padding: 16
+          }}
+          onClick={() => setShowGooglePicker(false)}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              color: '#202124',
+              borderRadius: 16,
+              padding: 28,
+              width: '100%',
+              maxWidth: 400,
+              boxShadow: '0 12px 40px rgba(0,0,0,0.4)',
+              position: 'relative',
+              fontFamily: 'system-ui, -apple-system, sans-serif'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <svg width="24" height="24" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                </svg>
+                <span style={{ fontSize: 16, fontWeight: 600 }}>Sign in with Google</span>
+              </div>
+              <button
+                onClick={() => setShowGooglePicker(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#5f6368' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <p style={{ fontSize: 13, color: '#5f6368', marginBottom: 16 }}>
+              Choose an account to continue to <strong>MINTOBABY Studio</strong>
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {[
+                {
+                  name: 'Alex Vance',
+                  email: 'alex.vance@gmail.com',
+                  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'
+                },
+                {
+                  name: 'Alpha Trader',
+                  email: 'trader.alpha@gmail.com',
+                  avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80'
+                }
+              ].map((acc) => (
+                <div
+                  key={acc.email}
+                  onClick={() => handleGoogleAccountSelect(acc)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: '10px 12px',
+                    border: '1px solid #dadce0',
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    transition: 'background 0.2s'
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = '#f8f9fa')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = '#ffffff')}
+                >
+                  <img src={acc.avatar} alt={acc.name} style={{ width: 36, height: 36, borderRadius: '50%' }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: '#202124' }}>{acc.name}</div>
+                    <div style={{ fontSize: 12, color: '#5f6368' }}>{acc.email}</div>
+                  </div>
+                  <span style={{ fontSize: 11, color: '#1a73e8', fontWeight: 600 }}>Sign In</span>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ borderTop: '1px solid #e8eaed', marginTop: 16, paddingTop: 12, textAlign: 'center' }}>
+              <button
+                onClick={() => {
+                  const custom = prompt('Enter your Google Account email:');
+                  if (custom) {
+                    handleGoogleAccountSelect({
+                      name: custom.split('@')[0],
+                      email: custom,
+                      avatar: ''
+                    });
+                  }
+                }}
+                style={{ background: 'none', border: 'none', color: '#1a73e8', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+              >
+                Use another Google account
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
