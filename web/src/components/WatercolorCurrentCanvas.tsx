@@ -23,7 +23,7 @@ interface WaveParticle {
 export const WatercolorCurrentCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Mouse & Touch Tracking
+  // Mouse & Touch Tracking + Liquid UI Physics
   const mouseRef = useRef({
     x: -1000,
     y: -1000,
@@ -34,7 +34,15 @@ export const WatercolorCurrentCanvas: React.FC = () => {
     speed: 0,
     moving: false,
     lastMoveTime: 0,
-    movementEnergy: 0, // Accumulates as user moves more
+    movementEnergy: 0,
+    // Liquid Website UI Motion State
+    uiTargetX: 0,
+    uiTargetY: 0,
+    uiCurrentX: 0,
+    uiCurrentY: 0,
+    uiRotX: 0,
+    uiRotY: 0,
+    wavePhase: 0,
   });
 
   useEffect(() => {
@@ -56,34 +64,30 @@ export const WatercolorCurrentCanvas: React.FC = () => {
     window.addEventListener('resize', handleResize);
 
     const particles: WaveParticle[] = [];
-    const maxParticles = 280;
+    const maxParticles = 180;
 
-    // Full unified color palette from purple downward:
-    // Top (y=0): Deep Royal Purple (270) -> Violet (285)
-    // Mid (y=0.5): Electric Magenta (310) -> Indigo/Blue (240)
-    // Bottom (y=1.0): Ocean Cyan (195) -> Emerald Teal (165)
+    // Full unified color palette starting from purple downward
     const getPaletteColorForPosition = (y: number, energy: number) => {
       const ratio = Math.max(0, Math.min(1, y / height));
 
       let hue: number;
       if (ratio < 0.33) {
-        hue = 265 + (ratio / 0.33) * 25; // 265 -> 290 (Purple to Violet)
+        hue = 265 + (ratio / 0.33) * 25; // Purple -> Violet
       } else if (ratio < 0.66) {
         const midRatio = (ratio - 0.33) / 0.33;
-        hue = 290 - midRatio * 50; // 290 -> 240 (Violet/Magenta to Royal Blue)
+        hue = 290 - midRatio * 50; // Violet -> Indigo / Blue
       } else {
         const botRatio = (ratio - 0.66) / 0.34;
-        hue = 240 - botRatio * 75; // 240 -> 165 (Blue to Cyan & Emerald)
+        hue = 240 - botRatio * 75; // Blue -> Cyan & Emerald
       }
 
-      // As movement energy increases, colors become dramatically brighter & more luminous!
       const sat = Math.min(100, 80 + energy * 20);
-      const baseLight = 45 + Math.min(40, energy * 35); // Increases brightness on faster/continuous movement
+      const baseLight = 45 + Math.min(40, energy * 35); // Brighter as movement increases
 
       return { hue, sat, baseLight };
     };
 
-    // Spawn interconnected liquid wave disturbance blobs
+    // Spawn tighter, localized watercolor wave particles right around the pointer
     const spawnWaveDisturbance = (
       x: number,
       y: number,
@@ -94,8 +98,8 @@ export const WatercolorCurrentCanvas: React.FC = () => {
       const energy = mouseRef.current.movementEnergy;
       const { hue, sat, baseLight } = getPaletteColorForPosition(y, energy);
 
-      // Create overlapping wave clusters that blend into one continuous color sheet
-      const clusterSize = Math.min(8, 2 + Math.floor(speed * 0.3));
+      // Reduced area of effect: smaller cluster size & tighter radius
+      const clusterSize = Math.min(5, 1 + Math.floor(speed * 0.2));
 
       for (let i = 0; i < clusterSize; i++) {
         if (particles.length >= maxParticles) {
@@ -103,33 +107,33 @@ export const WatercolorCurrentCanvas: React.FC = () => {
         }
 
         const offsetAngle = Math.random() * Math.PI * 2;
-        const offsetDist = Math.random() * (20 + speed * 2);
+        const offsetDist = Math.random() * (8 + speed * 1.2); // Tighter localized spread
 
         const spawnX = x + Math.cos(offsetAngle) * offsetDist;
         const spawnY = y + Math.sin(offsetAngle) * offsetDist;
 
-        // Wave disturbance radius grows larger and brighter as movement increases
-        const radius = 25 + Math.random() * 20 + energy * 30;
-        const maxRadius = radius + 30 + Math.random() * 40 + speed * 3;
+        // Reduced area of effect particle radius
+        const radius = 8 + Math.random() * 8 + energy * 10;
+        const maxRadius = radius + 12 + Math.random() * 15 + speed * 1.5;
 
         particles.push({
           x: spawnX,
           y: spawnY,
           baseX: spawnX,
           baseY: spawnY,
-          vx: vx * 0.2 + (Math.random() - 0.5) * 1.5,
-          vy: vy * 0.2 + (Math.random() - 0.5) * 1.5,
+          vx: vx * 0.15 + (Math.random() - 0.5) * 1.0,
+          vy: vy * 0.15 + (Math.random() - 0.5) * 1.0,
           radius,
           maxRadius,
           hue,
           sat,
           baseLight,
-          alpha: 0.35 + Math.min(0.4, energy * 0.35),
+          alpha: 0.4 + Math.min(0.4, energy * 0.35),
           life: 0,
-          maxLife: 40 + Math.random() * 30, // Settles quickly when cursor stops
+          maxLife: 35 + Math.random() * 25,
           phase: Math.random() * Math.PI * 2,
-          frequency: 0.03 + Math.random() * 0.04,
-          amplitude: 8 + Math.random() * 12 + speed * 0.5, // Water wave ripple height
+          frequency: 0.04 + Math.random() * 0.04,
+          amplitude: 4 + Math.random() * 6 + speed * 0.3,
         });
       }
     };
@@ -156,38 +160,71 @@ export const WatercolorCurrentCanvas: React.FC = () => {
       mouse.moving = true;
       mouse.lastMoveTime = Date.now();
 
-      // Accumulate energy: the more the user moves, the brighter the colors get!
+      // Accumulate energy
       mouse.movementEnergy = Math.min(1.0, mouse.movementEnergy + 0.08 + mouse.speed * 0.005);
+
+      // Compute liquid website UI displacement target
+      const normX = (mouse.x / width - 0.5) * 2; // -1 to 1
+      const normY = (mouse.y / height - 0.5) * 2; // -1 to 1
+
+      mouse.uiTargetX = normX * 12 + mouse.vx * 0.4;
+      mouse.uiTargetY = normY * 10 + mouse.vy * 0.4;
+      mouse.uiRotX = normY * -2.5;
+      mouse.uiRotY = normX * 2.5;
 
       spawnWaveDisturbance(mouse.x, mouse.y, mouse.vx, mouse.vy, mouse.speed);
     };
 
     const onPointerClick = (e: MouseEvent) => {
       mouseRef.current.movementEnergy = 1.0;
-      spawnWaveDisturbance(e.clientX, e.clientY, 0, 0, 15);
+      spawnWaveDisturbance(e.clientX, e.clientY, 0, 0, 10);
     };
 
     window.addEventListener('mousemove', onPointerMove);
     window.addEventListener('touchmove', onPointerMove, { passive: true });
     window.addEventListener('click', onPointerClick);
 
-    // Main 60 FPS Render Loop
+    // Main 60 FPS Render & Liquid UI Loop
     const render = () => {
       ctx.clearRect(0, 0, width, height);
 
+      const mouse = mouseRef.current;
       const now = Date.now();
-      const timeSinceMove = now - mouseRef.current.lastMoveTime;
+      const timeSinceMove = now - mouse.lastMoveTime;
       const isMouseStopped = timeSinceMove > 100;
 
       if (isMouseStopped) {
-        mouseRef.current.moving = false;
-        // Decay movement energy smoothly back to 0 when cursor stops
-        mouseRef.current.movementEnergy *= 0.88;
+        mouse.moving = false;
+        mouse.movementEnergy *= 0.88;
+        // Ease liquid website UI back to resting state
+        mouse.uiTargetX *= 0.9;
+        mouse.uiTargetY *= 0.9;
+        mouse.uiRotX *= 0.9;
+        mouse.uiRotY *= 0.9;
       }
 
+      // --- LIQUID WEBSITE UI WAVE MOTION CONTROLLER ---
+      mouse.wavePhase += 0.04;
+      mouse.uiCurrentX += (mouse.uiTargetX - mouse.uiCurrentX) * 0.1;
+      mouse.uiCurrentY += (mouse.uiTargetY - mouse.uiCurrentY) * 0.1;
+
+      // Calculate fluid wave sway
+      const fluidSwayX = Math.sin(mouse.wavePhase) * (mouse.moving ? 3 : 0.8);
+      const fluidSwayY = Math.cos(mouse.wavePhase * 0.8) * (mouse.moving ? 2.5 : 0.6);
+
+      const totalX = mouse.uiCurrentX + fluidSwayX;
+      const totalY = mouse.uiCurrentY + fluidSwayY;
+
+      // Apply liquid wave transform to website container
+      const websiteWrapper = document.getElementById('liquid-website-wrapper');
+      if (websiteWrapper) {
+        websiteWrapper.style.transform = `translate3d(${totalX.toFixed(2)}px, ${totalY.toFixed(2)}px, 0) rotateX(${mouse.uiRotX.toFixed(2)}deg) rotateY(${mouse.uiRotY.toFixed(2)}deg)`;
+        websiteWrapper.style.transition = mouse.moving ? 'none' : 'transform 0.5s cubic-bezier(0.1, 0.8, 0.2, 1)';
+      }
+
+      // --- WATERCOLOR CANVAS DRAWING ---
       if (particles.length > 0) {
         ctx.save();
-        // Screen composite mode blends overlapping colors into a smooth continuous watercolor palette
         ctx.globalCompositeOperation = 'screen';
 
         for (let i = particles.length - 1; i >= 0; i--) {
@@ -195,28 +232,26 @@ export const WatercolorCurrentCanvas: React.FC = () => {
 
           if (isMouseStopped) {
             p.life += 2.5;
-            p.alpha *= 0.86; // Rapid clean fade back to static background
+            p.alpha *= 0.86;
           } else {
             p.life++;
           }
 
-          // Expand radius simulating watercolor liquid spreading
           if (p.radius < p.maxRadius) {
-            p.radius += 1.2;
+            p.radius += 0.8;
           }
 
-          // --- WATER WAVE DISTURBANCE MOTION (Sine / Cosine Wave Equations) ---
+          // Water Wave Ripple Equations
           p.phase += p.frequency;
-          const waveDistortionX = Math.sin(p.phase + p.baseY * 0.015) * p.amplitude;
-          const waveDistortionY = Math.cos(p.phase + p.baseX * 0.015) * (p.amplitude * 0.7);
+          const waveDistortionX = Math.sin(p.phase + p.baseY * 0.02) * p.amplitude;
+          const waveDistortionY = Math.cos(p.phase + p.baseX * 0.02) * (p.amplitude * 0.7);
 
           p.x = p.baseX + waveDistortionX + p.vx;
           p.y = p.baseY + waveDistortionY + p.vy;
 
-          p.vx *= 0.95;
-          p.vy *= 0.95;
+          p.vx *= 0.94;
+          p.vy *= 0.94;
 
-          // Fade calculation
           const lifeRatio = p.life / p.maxLife;
           let currentAlpha = p.alpha;
           if (lifeRatio > 0.3) {
@@ -228,21 +263,21 @@ export const WatercolorCurrentCanvas: React.FC = () => {
             continue;
           }
 
-          // Draw Soft Continuous Blended Watercolor Palette Gradient
+          // Draw Soft Tighter Watercolor Blob
           const radialGrad = ctx.createRadialGradient(
             p.x,
             p.y,
             0,
-            p.x + Math.sin(p.phase) * (p.radius * 0.15),
-            p.y + Math.cos(p.phase) * (p.radius * 0.15),
+            p.x + Math.sin(p.phase) * (p.radius * 0.12),
+            p.y + Math.cos(p.phase) * (p.radius * 0.12),
             p.radius
           );
 
           const colorString = `hsla(${p.hue}, ${p.sat}%, ${p.baseLight}%, `;
 
           radialGrad.addColorStop(0, `${colorString}${currentAlpha})`);
-          radialGrad.addColorStop(0.45, `${colorString}${currentAlpha * 0.65})`);
-          radialGrad.addColorStop(0.8, `${colorString}${currentAlpha * 0.25})`);
+          radialGrad.addColorStop(0.5, `${colorString}${currentAlpha * 0.6})`);
+          radialGrad.addColorStop(0.85, `${colorString}${currentAlpha * 0.2})`);
           radialGrad.addColorStop(1, `${colorString}0)`);
 
           ctx.fillStyle = radialGrad;
@@ -279,7 +314,7 @@ export const WatercolorCurrentCanvas: React.FC = () => {
         pointerEvents: 'none',
         zIndex: 0,
         opacity: 0.92,
-        filter: 'blur(2px)', // Blends all colors together smoothly into one unified watercolor sheet
+        filter: 'blur(1.5px)',
         transition: 'opacity 0.3s ease',
       }}
     />
