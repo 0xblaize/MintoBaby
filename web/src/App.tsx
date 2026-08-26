@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout }        from './components/Layout';
 import Dashboard         from './pages/Dashboard';
 import ScanPage          from './pages/ScanPage';
@@ -7,13 +7,22 @@ import SchedulePage      from './pages/SchedulePage';
 import CopyMintPage      from './pages/CopyMintPage';
 import SchedulesPage     from './pages/SchedulesPage';
 import WalletPage        from './pages/WalletPage';
+import MintoBabyStudio   from './pages/MintoBabyStudio';
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Main Home Page: MINTOBABY Studio Landing Page */}
+        <Route path="/" element={<MintoBabyStudio />} />
+        
+        {/* Legacy /landing & /agency redirect to root "/" */}
+        <Route path="landing" element={<Navigate to="/" replace />} />
+        <Route path="agency" element={<Navigate to="/" replace />} />
+
+        {/* Console & App Dashboard Routes */}
         <Route element={<Layout />}>
-          <Route index        element={<Dashboard />}     />
+          <Route path="dashboard" element={<Dashboard />} />
           <Route path="scan"      element={<ScanPage />}      />
           <Route path="mint"      element={<MintPage />}      />
           <Route path="schedule"  element={<SchedulePage />}  />
