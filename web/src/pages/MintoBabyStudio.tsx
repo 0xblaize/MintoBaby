@@ -1732,20 +1732,30 @@ export default function MintoBabyStudio() {
           }
           .hero-left-col {
             max-width: 100% !important;
+            padding-left: 5vw !important;
             padding-right: 5vw !important;
-            padding-top: 20px !important;
+            padding-top: 10px !important;
           }
           .hero-floating-cards {
             display: none !important;
           }
           .project-row {
-            grid-template-columns: 50px 1fr 40px !important;
+            grid-template-columns: 40px 1fr !important;
+            padding: 18px 20px !important;
           }
           .project-row > div:nth-child(3) {
-            display: none;
+            display: none !important;
           }
           .about-split {
             grid-template-columns: 1fr !important;
+            gap: 36px !important;
+          }
+          section {
+            padding-top: 60px !important;
+            padding-bottom: 60px !important;
+          }
+          h1, h2 {
+            font-size: clamp(32px, 8vw, 48px) !important;
           }
         }
       `}</style>
