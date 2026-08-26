@@ -376,7 +376,7 @@ export default function MintoBabyStudio() {
             <span>MINTOBABY BOT · 10MS MEMPOOL EXECUTOR</span>
           </div>
 
-          {/* Headline H1 (Shifted Down & Scaled Cleanly) */}
+          {/* Headline H1 */}
           <h1
             className="font-heading hero-h1"
             style={{
@@ -391,9 +391,9 @@ export default function MintoBabyStudio() {
               animation: 'fadeUp 0.6s ease forwards 0.2s',
             }}
           >
-            WE BUILD{'\n'}BOTS THAT{'\n'}
+            THE FASTEST{'\n'}ONCHAIN BOT{'\n'}
             <span style={{ color: '#6b3ce8', position: 'relative', display: 'inline-block' }}>
-              DOMINATE.
+              EVER BUILT.
             </span>
           </h1>
 
@@ -406,13 +406,13 @@ export default function MintoBabyStudio() {
               color: '#827e99',
               fontSize: 'clamp(14px, 1.3vw, 18px)',
               lineHeight: 1.5,
-              maxWidth: 500,
+              maxWidth: 520,
               marginBottom: 32,
               opacity: 0,
               animation: 'fadeUp 0.6s ease forwards 0.3s',
             }}
           >
-            Sub-10ms mempool sniping, 1-click sniper wallet generation, and automated multi-chain execution for Web3 traders — paid access only.
+            Automated block-0 mempool sniping, 1-click wallet key generation, and CopyMint whale tracking across Robinhood Chain, Base, Ink L2, and Solana.
           </p>
 
           {/* CTAs */}
