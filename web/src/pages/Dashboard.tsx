@@ -30,7 +30,7 @@ export default function Dashboard() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 700 }}>⚡ MintoBaby Matrix Engine</h1>
+        <h1 style={{ fontSize: 26, fontWeight: 700 }}>MintoBaby Matrix Engine</h1>
         <div style={{ background: '#1a2a1a', border: '1px solid #00ff88', borderRadius: 20, padding: '4px 14px', fontSize: 12, color: '#00ff88', fontWeight: 600 }}>
           Multi-Chain Quantum Active
         </div>
@@ -83,11 +83,11 @@ export default function Dashboard() {
       <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, color: '#888' }}>Matrix Operations</h2>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
         {[
-          { title: '📡 Copy-Mint Radar', desc: 'Track alpha wallets on Robinhood, Ink & Solana to replay mints instantly.', path: '/copymint', color: '#00ccff' },
-          { title: '⏰ Quantum Scheduler', desc: 'Schedule block-exact drop triggers across all 3 supported chains.', path: '/schedule', color: '#ffd700' },
-          { title: '⚡ Direct Mint Exec', desc: 'Preflight-simulated zero-latency mint execution.', path: '/mint', color: '#00ff88' },
-          { title: '🔍 On-Chain Scanner', desc: 'Probe collection phase, SeaDrop, CandyMachine, and cost specs.', path: '/scan', color: '#e0e0ff' },
-          { title: '💳 Multi-Key Vault', desc: 'Manage EVM and Solana keypairs with AES-256 encryption.', path: '/wallet', color: '#9945FF' },
+          { title: 'Copy-Mint Radar', desc: 'Track alpha wallets on Robinhood, Ink & Solana to replay mints instantly.', path: '/copymint', color: '#00ccff' },
+          { title: 'Quantum Scheduler', desc: 'Schedule block-exact drop triggers across all 3 supported chains.', path: '/schedule', color: '#ffd700' },
+          { title: 'Direct Mint Exec', desc: 'Preflight-simulated zero-latency mint execution.', path: '/mint', color: '#00ff88' },
+          { title: 'On-Chain Scanner', desc: 'Probe collection phase, SeaDrop, CandyMachine, and cost specs.', path: '/scan', color: '#e0e0ff' },
+          { title: 'Multi-Key Vault', desc: 'Manage EVM and Solana keypairs with AES-256 encryption.', path: '/wallet', color: '#9945FF' },
         ].map(item => (
           <div
             key={item.title}

@@ -58,7 +58,7 @@ export default function MintPage() {
 
   return (
     <div>
-      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 24 }}>⚡ Mint Now</h1>
+      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 24 }}>Mint Now</h1>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
 
         {/* Left: form */}
@@ -88,7 +88,7 @@ export default function MintPage() {
           </div>
           {error && <div style={{ color: '#ff4444', fontSize: 13, marginBottom: 12 }}>{error}</div>}
           <button style={btn('#00ff88', minting || !contract || !pk)} onClick={doMint} disabled={minting || !contract || !pk}>
-            {minting ? '⏳ Minting…' : '⚡ Execute Mint'}
+            {minting ? 'Minting...' : 'Execute Mint'}
           </button>
         </div>
 

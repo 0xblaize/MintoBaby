@@ -137,7 +137,7 @@ export default function CopyMintPage() {
 
         {/* Info panel */}
         <div style={{ background: '#12121a', border: '1px solid #2a2a3a', borderRadius: 12, padding: 24 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, color: '#e0e0ff' }}>⚡ How Copy-Minting Works</h2>
+          <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, color: '#e0e0ff' }}>How Copy-Minting Works</h2>
           <ul style={{ color: '#888', fontSize: 13, lineHeight: 1.8, paddingLeft: 20 }}>
             <li><b>Real-Time Monitoring:</b> MintoBaby watches target wallets block-by-block.</li>
             <li><b>Calldata Decoding:</b> Evaluates function calls, contract safety, and mint price.</li>

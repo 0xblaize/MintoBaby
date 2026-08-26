@@ -99,12 +99,12 @@ export default function ScanPage() {
           <div style={{ display: 'flex', gap: 12 }}>
             {result.is_live && (
               <button style={btn('#00ff88')} onClick={() => nav('/mint', { state: { contract: result.address, price: result.price_eth } })}>
-                ⚡ Mint Now
+                Mint Now
               </button>
             )}
             {!result.is_live && result.on_chain_start_time_ms && (
               <button style={btn('#ffd700')} onClick={() => nav('/schedule', { state: { contract: result.address, price: result.price_eth, mintTimeMs: result.on_chain_start_time_ms } })}>
-                ⏰ Schedule
+                Schedule Mints
               </button>
             )}
             <button style={btn('#888')} onClick={() => nav('/schedule', { state: { contract: result.address, price: result.price_eth } })}>

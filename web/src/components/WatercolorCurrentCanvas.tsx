@@ -1,42 +1,27 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 
-type PaletteMode = 'watercolor' | 'cosmic' | 'neon';
-
-interface Particle {
+interface WaveParticle {
   x: number;
   y: number;
+  baseX: number;
+  baseY: number;
   vx: number;
   vy: number;
   radius: number;
   maxRadius: number;
-  growthRate: number;
-  color: string;
+  hue: number;
+  sat: number;
+  baseLight: number;
   alpha: number;
   life: number;
   maxLife: number;
-  hue: number;
-  sat: number;
-  light: number;
-  spinAngle: number;
-  spinSpeed: number;
-  isSparkle?: boolean;
-}
-
-interface CurrentPoint {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  radius: number;
-  color: string;
-  alpha: number;
+  phase: number;
+  frequency: number;
+  amplitude: number;
 }
 
 export const WatercolorCurrentCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [activeMode, setActiveMode] = useState<PaletteMode>('watercolor');
-  const [isInteractive, setIsInteractive] = useState<boolean>(true);
-  const [showControls, setShowControls] = useState<boolean>(false);
 
   // Mouse & Touch Tracking
   const mouseRef = useRef({
@@ -46,9 +31,10 @@ export const WatercolorCurrentCanvas: React.FC = () => {
     prevY: -1000,
     vx: 0,
     vy: 0,
-    isDown: false,
+    speed: 0,
     moving: false,
     lastMoveTime: 0,
+    movementEnergy: 0, // Accumulates as user moves more
   });
 
   useEffect(() => {
@@ -69,156 +55,87 @@ export const WatercolorCurrentCanvas: React.FC = () => {
 
     window.addEventListener('resize', handleResize);
 
-    // Particle & Trail Storage
-    const particles: Particle[] = [];
-    const trailPoints: CurrentPoint[] = [];
-    const maxParticles = 250;
-    const maxTrailPoints = 80;
+    const particles: WaveParticle[] = [];
+    const maxParticles = 280;
 
-    // Base color provider based on Y ratio (Purple at top -> down into magenta, blue, cyan)
-    const getColorForPosition = (y: number, mode: PaletteMode) => {
+    // Full unified color palette from purple downward:
+    // Top (y=0): Deep Royal Purple (270) -> Violet (285)
+    // Mid (y=0.5): Electric Magenta (310) -> Indigo/Blue (240)
+    // Bottom (y=1.0): Ocean Cyan (195) -> Emerald Teal (165)
+    const getPaletteColorForPosition = (y: number, energy: number) => {
       const ratio = Math.max(0, Math.min(1, y / height));
 
-      if (mode === 'cosmic') {
-        // Deep purple to violet & gold
-        const h = 260 + ratio * 60; // 260 (purple) -> 320 (magenta/gold)
-        return { hue: h, sat: 85, light: 55 + ratio * 10 };
-      } else if (mode === 'neon') {
-        // Electric neon purple -> cyan -> lime
-        const h = 270 - ratio * 150; // 270 (purple) -> 120 (neon green/teal)
-        return { hue: (h + 360) % 360, sat: 95, light: 60 };
+      let hue: number;
+      if (ratio < 0.33) {
+        hue = 265 + (ratio / 0.33) * 25; // 265 -> 290 (Purple to Violet)
+      } else if (ratio < 0.66) {
+        const midRatio = (ratio - 0.33) / 0.33;
+        hue = 290 - midRatio * 50; // 290 -> 240 (Violet/Magenta to Royal Blue)
       } else {
-        // Classic Watercolor: Purple downward to violet, indigo, blue, cyan
-        // Top 0.0-0.3: Vibrant Deep Purple (265 - 280)
-        // Mid 0.3-0.7: Electric Violet / Magenta / Royal Blue (285 - 230)
-        // Bottom 0.7-1.0: Ocean Blue & Cyan (210 - 180)
-        let h: number;
-        let s = 80;
-        let l = 60;
-
-        if (ratio < 0.35) {
-          h = 265 + (ratio / 0.35) * 20; // 265 -> 285 (Purple / Violet)
-          s = 85;
-          l = 55 + ratio * 15;
-        } else if (ratio < 0.7) {
-          const midRatio = (ratio - 0.35) / 0.35;
-          h = 285 - midRatio * 60; // 285 -> 225 (Violet -> Electric Blue)
-          s = 85;
-          l = 60;
-        } else {
-          const botRatio = (ratio - 0.7) / 0.3;
-          h = 225 - botRatio * 45; // 225 -> 180 (Blue -> Cyan / Emerald)
-          s = 90;
-          l = 55;
-        }
-
-        return { hue: h, sat: s, light: l };
+        const botRatio = (ratio - 0.66) / 0.34;
+        hue = 240 - botRatio * 75; // 240 -> 165 (Blue to Cyan & Emerald)
       }
+
+      // As movement energy increases, colors become dramatically brighter & more luminous!
+      const sat = Math.min(100, 80 + energy * 20);
+      const baseLight = 45 + Math.min(40, energy * 35); // Increases brightness on faster/continuous movement
+
+      return { hue, sat, baseLight };
     };
 
-    // Spawn Watercolor Droplet / Blooming Ink
-    const spawnWatercolorBlob = (
+    // Spawn interconnected liquid wave disturbance blobs
+    const spawnWaveDisturbance = (
       x: number,
       y: number,
-      vxForce = 0,
-      vyForce = 0,
-      isBurst = false
+      vx: number,
+      vy: number,
+      speed: number
     ) => {
-      const { hue, sat, light } = getColorForPosition(y, activeMode);
-      const count = isBurst ? 18 : 2;
+      const energy = mouseRef.current.movementEnergy;
+      const { hue, sat, baseLight } = getPaletteColorForPosition(y, energy);
 
-      for (let i = 0; i < count; i++) {
+      // Create overlapping wave clusters that blend into one continuous color sheet
+      const clusterSize = Math.min(8, 2 + Math.floor(speed * 0.3));
+
+      for (let i = 0; i < clusterSize; i++) {
         if (particles.length >= maxParticles) {
           particles.shift();
         }
 
-        const angle = Math.random() * Math.PI * 2;
-        const speed = isBurst
-          ? 2 + Math.random() * 6
-          : 0.5 + Math.random() * 2.5;
+        const offsetAngle = Math.random() * Math.PI * 2;
+        const offsetDist = Math.random() * (20 + speed * 2);
 
-        // Current flow vector (downward drift + mouse push)
-        const vx = Math.cos(angle) * speed + vxForce * 0.4;
-        const vy = Math.sin(angle) * speed + vyForce * 0.4 + 0.3; // gentle downward flow
+        const spawnX = x + Math.cos(offsetAngle) * offsetDist;
+        const spawnY = y + Math.sin(offsetAngle) * offsetDist;
 
-        const maxRadius = isBurst
-          ? 35 + Math.random() * 60
-          : 20 + Math.random() * 45;
+        // Wave disturbance radius grows larger and brighter as movement increases
+        const radius = 25 + Math.random() * 20 + energy * 30;
+        const maxRadius = radius + 30 + Math.random() * 40 + speed * 3;
 
         particles.push({
-          x: x + (Math.random() - 0.5) * 15,
-          y: y + (Math.random() - 0.5) * 15,
-          vx,
-          vy,
-          radius: 4 + Math.random() * 8,
+          x: spawnX,
+          y: spawnY,
+          baseX: spawnX,
+          baseY: spawnY,
+          vx: vx * 0.2 + (Math.random() - 0.5) * 1.5,
+          vy: vy * 0.2 + (Math.random() - 0.5) * 1.5,
+          radius,
           maxRadius,
-          growthRate: 0.6 + Math.random() * 1.2,
-          color: `hsla(${hue}, ${sat}%, ${light}%, `,
-          alpha: isBurst ? 0.7 : 0.45,
-          life: 0,
-          maxLife: 100 + Math.random() * 120,
           hue,
           sat,
-          light,
-          spinAngle: Math.random() * Math.PI * 2,
-          spinSpeed: (Math.random() - 0.5) * 0.04,
-          isSparkle: Math.random() < 0.2,
+          baseLight,
+          alpha: 0.35 + Math.min(0.4, energy * 0.35),
+          life: 0,
+          maxLife: 40 + Math.random() * 30, // Settles quickly when cursor stops
+          phase: Math.random() * Math.PI * 2,
+          frequency: 0.03 + Math.random() * 0.04,
+          amplitude: 8 + Math.random() * 12 + speed * 0.5, // Water wave ripple height
         });
-      }
-
-      // Add to current trail ribbon
-      if (trailPoints.length >= maxTrailPoints) {
-        trailPoints.shift();
-      }
-      trailPoints.push({
-        x,
-        y,
-        vx: vxForce,
-        vy: vyForce,
-        radius: 12 + Math.random() * 20,
-        color: `hsla(${hue}, ${sat}%, ${light}%, `,
-        alpha: 0.4,
-      });
-    };
-
-    // Ambient Liquid Current Generator (keeps background alive when cursor is idle)
-    let ambientTimer = 0;
-    const generateAmbientCurrent = () => {
-      ambientTimer++;
-      if (ambientTimer % 18 === 0) {
-        // Spawn soft floating watercolor drift from top/sides
-        const ambX = Math.random() * width;
-        const ambY = Math.random() * (height * 0.85);
-        const { hue, sat, light } = getColorForPosition(ambY, activeMode);
-
-        if (particles.length < maxParticles) {
-          particles.push({
-            x: ambX,
-            y: ambY,
-            vx: (Math.random() - 0.5) * 0.8,
-            vy: 0.4 + Math.random() * 0.6, // gentle downward current
-            radius: 8 + Math.random() * 12,
-            maxRadius: 30 + Math.random() * 50,
-            growthRate: 0.4 + Math.random() * 0.6,
-            color: `hsla(${hue}, ${sat}%, ${light}%, `,
-            alpha: 0.25,
-            life: 0,
-            maxLife: 140 + Math.random() * 100,
-            hue,
-            sat,
-            light,
-            spinAngle: Math.random() * Math.PI * 2,
-            spinSpeed: (Math.random() - 0.5) * 0.02,
-            isSparkle: Math.random() < 0.15,
-          });
-        }
       }
     };
 
     // Pointer Event Listeners
     const onPointerMove = (e: MouseEvent | TouchEvent) => {
-      if (!isInteractive) return;
-
       const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
       const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
 
@@ -233,17 +150,21 @@ export const WatercolorCurrentCanvas: React.FC = () => {
 
       mouse.x = clientX;
       mouse.y = clientY;
-      mouse.vx = (mouse.x - mouse.prevX) * 0.5;
-      mouse.vy = (mouse.y - mouse.prevY) * 0.5;
+      mouse.vx = mouse.x - mouse.prevX;
+      mouse.vy = mouse.y - mouse.prevY;
+      mouse.speed = Math.hypot(mouse.vx, mouse.vy);
       mouse.moving = true;
       mouse.lastMoveTime = Date.now();
 
-      spawnWatercolorBlob(mouse.x, mouse.y, mouse.vx, mouse.vy, false);
+      // Accumulate energy: the more the user moves, the brighter the colors get!
+      mouse.movementEnergy = Math.min(1.0, mouse.movementEnergy + 0.08 + mouse.speed * 0.005);
+
+      spawnWaveDisturbance(mouse.x, mouse.y, mouse.vx, mouse.vy, mouse.speed);
     };
 
     const onPointerClick = (e: MouseEvent) => {
-      if (!isInteractive) return;
-      spawnWatercolorBlob(e.clientX, e.clientY, 0, 0, true);
+      mouseRef.current.movementEnergy = 1.0;
+      spawnWaveDisturbance(e.clientX, e.clientY, 0, 0, 15);
     };
 
     window.addEventListener('mousemove', onPointerMove);
@@ -254,122 +175,83 @@ export const WatercolorCurrentCanvas: React.FC = () => {
     const render = () => {
       ctx.clearRect(0, 0, width, height);
 
-      // Check idle mouse state
-      if (Date.now() - mouseRef.current.lastMoveTime > 300) {
+      const now = Date.now();
+      const timeSinceMove = now - mouseRef.current.lastMoveTime;
+      const isMouseStopped = timeSinceMove > 100;
+
+      if (isMouseStopped) {
         mouseRef.current.moving = false;
+        // Decay movement energy smoothly back to 0 when cursor stops
+        mouseRef.current.movementEnergy *= 0.88;
       }
 
-      generateAmbientCurrent();
-
-      // --- LAYER 1: Fluid Ribbon / Water Current Connections ---
-      if (trailPoints.length > 2) {
+      if (particles.length > 0) {
         ctx.save();
+        // Screen composite mode blends overlapping colors into a smooth continuous watercolor palette
         ctx.globalCompositeOperation = 'screen';
-        for (let i = 1; i < trailPoints.length; i++) {
-          const p1 = trailPoints[i - 1];
-          const p2 = trailPoints[i];
-          p1.alpha *= 0.96; // fade over time
 
-          if (p1.alpha > 0.01) {
-            const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-            if (dist < 180) {
-              const grad = ctx.createLinearGradient(p1.x, p1.y, p2.x, p2.y);
-              grad.addColorStop(0, `${p1.color}${p1.alpha * 0.35})`);
-              grad.addColorStop(1, `${p2.color}${p2.alpha * 0.35})`);
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
 
-              ctx.beginPath();
-              ctx.moveTo(p1.x, p1.y);
-              ctx.lineTo(p2.x, p2.y);
-              ctx.strokeStyle = grad;
-              ctx.lineWidth = Math.max(1, (1 - dist / 180) * 16);
-              ctx.lineCap = 'round';
-              ctx.stroke();
-            }
+          if (isMouseStopped) {
+            p.life += 2.5;
+            p.alpha *= 0.86; // Rapid clean fade back to static background
+          } else {
+            p.life++;
           }
+
+          // Expand radius simulating watercolor liquid spreading
+          if (p.radius < p.maxRadius) {
+            p.radius += 1.2;
+          }
+
+          // --- WATER WAVE DISTURBANCE MOTION (Sine / Cosine Wave Equations) ---
+          p.phase += p.frequency;
+          const waveDistortionX = Math.sin(p.phase + p.baseY * 0.015) * p.amplitude;
+          const waveDistortionY = Math.cos(p.phase + p.baseX * 0.015) * (p.amplitude * 0.7);
+
+          p.x = p.baseX + waveDistortionX + p.vx;
+          p.y = p.baseY + waveDistortionY + p.vy;
+
+          p.vx *= 0.95;
+          p.vy *= 0.95;
+
+          // Fade calculation
+          const lifeRatio = p.life / p.maxLife;
+          let currentAlpha = p.alpha;
+          if (lifeRatio > 0.3) {
+            currentAlpha = p.alpha * (1 - (lifeRatio - 0.3) / 0.7);
+          }
+
+          if (p.life >= p.maxLife || currentAlpha <= 0.005) {
+            particles.splice(i, 1);
+            continue;
+          }
+
+          // Draw Soft Continuous Blended Watercolor Palette Gradient
+          const radialGrad = ctx.createRadialGradient(
+            p.x,
+            p.y,
+            0,
+            p.x + Math.sin(p.phase) * (p.radius * 0.15),
+            p.y + Math.cos(p.phase) * (p.radius * 0.15),
+            p.radius
+          );
+
+          const colorString = `hsla(${p.hue}, ${p.sat}%, ${p.baseLight}%, `;
+
+          radialGrad.addColorStop(0, `${colorString}${currentAlpha})`);
+          radialGrad.addColorStop(0.45, `${colorString}${currentAlpha * 0.65})`);
+          radialGrad.addColorStop(0.8, `${colorString}${currentAlpha * 0.25})`);
+          radialGrad.addColorStop(1, `${colorString}0)`);
+
+          ctx.fillStyle = radialGrad;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+          ctx.fill();
         }
         ctx.restore();
       }
-
-      // --- LAYER 2: Watercolor Blooming Ink Blobs ---
-      ctx.save();
-      // 'screen' blending produces vibrant watercolor ink blending on dark bg
-      ctx.globalCompositeOperation = 'screen';
-
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        p.life++;
-
-        // Expand radius simulating ink bloom in water
-        if (p.radius < p.maxRadius) {
-          p.radius += p.growthRate;
-        }
-
-        // Current motion & liquid friction
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vx *= 0.96;
-        p.vy = p.vy * 0.96 + 0.08; // subtle downward liquid gravity
-        p.spinAngle += p.spinSpeed;
-
-        // Mouse proximity reaction (pushes watercolor slightly)
-        const dx = p.x - mouseRef.current.x;
-        const dy = p.y - mouseRef.current.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 120 && mouseRef.current.moving) {
-          const force = (1 - dist / 120) * 1.5;
-          p.vx += (dx / (dist || 1)) * force;
-          p.vy += (dy / (dist || 1)) * force;
-        }
-
-        // Fade calculation
-        const lifeRatio = p.life / p.maxLife;
-        let currentAlpha = p.alpha;
-        if (lifeRatio > 0.6) {
-          currentAlpha = p.alpha * (1 - (lifeRatio - 0.6) / 0.4);
-        }
-
-        if (p.life >= p.maxLife || currentAlpha <= 0.005) {
-          particles.splice(i, 1);
-          continue;
-        }
-
-        // Draw Soft Soft-Edged Radial Watercolor Blob
-        const radialGrad = ctx.createRadialGradient(
-          p.x,
-          p.y,
-          0,
-          p.x + Math.cos(p.spinAngle) * (p.radius * 0.2),
-          p.y + Math.sin(p.spinAngle) * (p.radius * 0.2),
-          p.radius
-        );
-
-        radialGrad.addColorStop(0, `${p.color}${currentAlpha})`);
-        radialGrad.addColorStop(0.4, `${p.color}${currentAlpha * 0.6})`);
-        radialGrad.addColorStop(0.75, `${p.color}${currentAlpha * 0.2})`);
-        radialGrad.addColorStop(1, `${p.color}0)`);
-
-        ctx.fillStyle = radialGrad;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Draw occasional liquid sparkle accent
-        if (p.isSparkle && currentAlpha > 0.15) {
-          ctx.save();
-          ctx.fillStyle = `rgba(255, 255, 255, ${currentAlpha * 0.8})`;
-          ctx.beginPath();
-          ctx.arc(
-            p.x + (Math.random() - 0.5) * p.radius * 0.5,
-            p.y + (Math.random() - 0.5) * p.radius * 0.5,
-            1.5 + Math.random() * 1.5,
-            0,
-            Math.PI * 2
-          );
-          ctx.fill();
-          ctx.restore();
-        }
-      }
-      ctx.restore();
 
       animId = requestAnimationFrame(render);
     };
@@ -383,175 +265,24 @@ export const WatercolorCurrentCanvas: React.FC = () => {
       window.removeEventListener('touchmove', onPointerMove);
       window.removeEventListener('click', onPointerClick);
     };
-  }, [activeMode, isInteractive]);
+  }, []);
 
   return (
-    <>
-      {/* Background Interactive Watercolor Canvas */}
-      <canvas
-        ref={canvasRef}
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          pointerEvents: 'none',
-          zIndex: 0,
-          opacity: 0.88,
-          filter: 'blur(1px)', // Soft organic watercolor diffusion look
-          transition: 'opacity 0.5s ease',
-        }}
-      />
-
-      {/* Subtle Floating Controls Badge for User Customization */}
-      <div
-        style={{
-          position: 'fixed',
-          bottom: 24,
-          right: 24,
-          zIndex: 99,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-end',
-          gap: 8,
-          fontFamily: "'Inter', system-ui, sans-serif",
-        }}
-      >
-        {/* Toggle Button */}
-        <button
-          onClick={() => setShowControls(!showControls)}
-          style={{
-            background: 'rgba(20, 19, 26, 0.85)',
-            color: '#c77dff',
-            border: '1px solid rgba(107, 60, 232, 0.4)',
-            backdropFilter: 'blur(12px)',
-            borderRadius: 30,
-            padding: '8px 16px',
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            boxShadow: '0 4px 20px rgba(0,0,0,0.4), 0 0 15px rgba(107, 60, 232, 0.25)',
-            transition: 'all 0.25s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = 'rgba(107, 60, 232, 0.8)';
-            e.currentTarget.style.transform = 'scale(1.04)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'rgba(107, 60, 232, 0.4)';
-            e.currentTarget.style.transform = 'scale(1)';
-          }}
-        >
-          <span style={{ fontSize: 14 }}>🎨</span>
-          <span>Watercolor Current FX</span>
-          <span
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: '50%',
-              background: isInteractive ? '#00ff88' : '#827e99',
-              boxShadow: isInteractive ? '0 0 8px #00ff88' : 'none',
-            }}
-          />
-        </button>
-
-        {/* Expanded Controls Card */}
-        {showControls && (
-          <div
-            style={{
-              background: 'rgba(15, 14, 22, 0.94)',
-              border: '1px solid rgba(107, 60, 232, 0.4)',
-              backdropFilter: 'blur(16px)',
-              borderRadius: 16,
-              padding: 16,
-              width: 260,
-              boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 20px rgba(107, 60, 232, 0.3)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 12,
-              animation: 'fadeIn 0.2s ease-out',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                borderBottom: '1px solid rgba(255,255,255,0.08)',
-                paddingBottom: 8,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: '#fff',
-                  letterSpacing: '0.05em',
-                  textTransform: 'uppercase',
-                }}
-              >
-                Reactive Fluid FX
-              </span>
-              <button
-                onClick={() => setIsInteractive(!isInteractive)}
-                style={{
-                  background: isInteractive ? 'rgba(0, 255, 136, 0.15)' : 'rgba(255, 255, 255, 0.1)',
-                  color: isInteractive ? '#00ff88' : '#827e99',
-                  border: isInteractive ? '1px solid rgba(0, 255, 136, 0.4)' : '1px solid rgba(255, 255, 255, 0.15)',
-                  borderRadius: 6,
-                  padding: '3px 8px',
-                  fontSize: 10,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                {isInteractive ? 'ACTIVE' : 'PAUSED'}
-              </button>
-            </div>
-
-            <div>
-              <div style={{ fontSize: 11, color: '#827e99', marginBottom: 6, fontWeight: 500 }}>
-                Color Current Theme
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {[
-                  { id: 'watercolor', label: '🟣 Purple Downward Fluid', desc: 'Purple top -> Violet -> Cyan bottom' },
-                  { id: 'cosmic', label: '🔮 Cosmic Purple & Gold', desc: 'Deep Violet, Magenta & Golden Ink' },
-                  { id: 'neon', label: '⚡ Electric Cyber Current', desc: 'High Contrast Neon Waves' },
-                ].map((mode) => (
-                  <button
-                    key={mode.id}
-                    onClick={() => setActiveMode(mode.id as PaletteMode)}
-                    style={{
-                      background: activeMode === mode.id ? 'rgba(107, 60, 232, 0.3)' : 'rgba(255, 255, 255, 0.04)',
-                      border: activeMode === mode.id ? '1px solid #6b3ce8' : '1px solid transparent',
-                      borderRadius: 8,
-                      padding: '7px 10px',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                    }}
-                  >
-                    <div style={{ fontSize: 11, fontWeight: 600, color: activeMode === mode.id ? '#fff' : '#c77dff' }}>
-                      {mode.label}
-                    </div>
-                    <div style={{ fontSize: 9, color: '#827e99', marginTop: 2 }}>{mode.desc}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ fontSize: 10, color: '#827e99', fontStyle: 'italic', textAlign: 'center' }}>
-              💡 Move cursor around or click anywhere to splash color!
-            </div>
-          </div>
-        )}
-      </div>
-    </>
+    <canvas
+      ref={canvasRef}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        pointerEvents: 'none',
+        zIndex: 0,
+        opacity: 0.92,
+        filter: 'blur(2px)', // Blends all colors together smoothly into one unified watercolor sheet
+        transition: 'opacity 0.3s ease',
+      }}
+    />
   );
 };
 

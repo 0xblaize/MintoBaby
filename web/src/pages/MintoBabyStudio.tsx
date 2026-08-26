@@ -19,7 +19,10 @@ import {
   IconTerminal,
   IconCheck,
   IconLock,
-  IconCpu
+  IconCpu,
+  IconTelegram,
+  IconTerminalScreen,
+  IconMonitor
 } from '../components/MintoIcons';
 import { StartProjectModal } from '../components/StartProjectModal';
 import { CaseStudyModal, ProjectData } from '../components/CaseStudyModal';
@@ -179,6 +182,9 @@ export default function MintoBabyStudio() {
             <a href="#bot-vectors" style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.2s' }} onMouseEnter={(e) => (e.currentTarget.style.color = '#fff')} onMouseLeave={(e) => (e.currentTarget.style.color = '#827e99')}>
               Capabilities
             </a>
+            <a href="#interfaces" style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.2s' }} onMouseEnter={(e) => (e.currentTarget.style.color = '#fff')} onMouseLeave={(e) => (e.currentTarget.style.color = '#827e99')}>
+              3 Interfaces
+            </a>
             <a href="#services" style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.2s' }} onMouseEnter={(e) => (e.currentTarget.style.color = '#fff')} onMouseLeave={(e) => (e.currentTarget.style.color = '#827e99')}>
               Services
             </a>
@@ -256,6 +262,9 @@ export default function MintoBabyStudio() {
           >
             <a href="#bot-vectors" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', textDecoration: 'none', fontSize: 15, fontWeight: 500 }}>
               Capabilities
+            </a>
+            <a href="#interfaces" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', textDecoration: 'none', fontSize: 15, fontWeight: 500 }}>
+              3 Interfaces
             </a>
             <a href="#services" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', textDecoration: 'none', fontSize: 15, fontWeight: 500 }}>
               Services
@@ -676,6 +685,164 @@ export default function MintoBabyStudio() {
                 </div>
               );
             })}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 3.5 THREE ECOSYSTEM INTERFACES (TERMINAL, WEB APP, TG BOT) ── */}
+      <section id="interfaces" style={{ padding: '100px 5vw', background: 'rgba(10, 10, 15, 0.4)', borderTop: '1px solid rgba(250, 8%, 20%, 0.5)' }}>
+        <div style={{ maxWidth: '1600px', margin: '0 auto' }}>
+          
+          <div style={{ marginBottom: '60px' }}>
+            <div style={{ fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.14em', color: '#6b3ce8', marginBottom: 12 }}>
+              TRIPLE PLATFORM ECOSYSTEM
+            </div>
+            <h2
+              className="font-heading"
+              style={{
+                fontSize: 'clamp(36px, 4.5vw, 68px)',
+                fontWeight: 700,
+                color: '#ffffff',
+                lineHeight: 1.05,
+                margin: 0,
+              }}
+            >
+              Three Ways To Access MINTOBABY
+            </h2>
+            <p style={{ fontFamily: "'Inter', sans-serif", color: '#827e99', fontSize: 16, marginTop: 16, maxWidth: '750px', fontWeight: 300 }}>
+              Deploy MINTOBABY across three powerful interfaces tailored to your strategy—ranked by execution speed and response latency.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))', gap: '28px' }}>
+            
+            {/* 1. CLI TERMINAL (FASTEST) */}
+            <div
+              style={{
+                background: 'linear-gradient(135deg, rgba(28, 27, 36, 0.9) 0%, rgba(107, 60, 232, 0.18) 100%)',
+                border: '1px solid rgba(107, 60, 232, 0.5)',
+                borderRadius: '20px',
+                padding: '36px',
+                position: 'relative',
+                overflow: 'hidden',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                display: 'flex',
+                flexDirection: 'column',
+                justify: 'space-between',
+              }}
+            >
+              <div style={{ position: 'absolute', top: 16, right: 16, background: '#6b3ce8', color: '#fff', fontSize: 10, fontWeight: 800, padding: '4px 12px', borderRadius: 12, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                RANK 01 · FASTEST SPEED
+              </div>
+
+              <div>
+                <div style={{ width: 52, height: 52, borderRadius: 14, background: 'rgba(107, 60, 232, 0.25)', border: '1px solid #6b3ce8', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00ff88', marginBottom: 24 }}>
+                  <IconTerminalScreen size={26} color="#00ff88" />
+                </div>
+
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#00ff88', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8 }}>
+                  SPEED RANK 01 · CLI TERMINAL
+                </div>
+
+                <h3 className="font-heading" style={{ fontSize: 26, fontWeight: 700, color: '#ffffff', marginBottom: 16 }}>
+                  CLI Terminal Base Engine
+                </h3>
+
+                <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 14, color: '#827e99', lineHeight: 1.65, fontWeight: 300, marginBottom: 24 }}>
+                  The absolute fastest execution mode. Direct low-level RPC WebSocket integration bypassing browser DOM overhead. Connects directly to custom Yul Assembly <code style={{ color: '#00ff88', background: 'rgba(0,255,136,0.1)', padding: '2px 6px', borderRadius: 4 }}>AutoMintExecutor.sol</code> for guaranteed block-0 mempool entry.
+                </p>
+              </div>
+
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 12, color: '#827e99' }}>Execution Latency</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#00ff88' }}>&lt; 10ms (Fastest Response)</span>
+              </div>
+            </div>
+
+            {/* 2. WEB STUDIO WEBSITE (NEXT FASTEST) */}
+            <div
+              style={{
+                background: 'rgba(20, 19, 26, 0.85)',
+                border: '1px solid rgba(250, 8%, 20%, 0.6)',
+                borderRadius: '20px',
+                padding: '36px',
+                position: 'relative',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+                justify: 'space-between',
+              }}
+            >
+              <div style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255, 255, 255, 0.1)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '4px 12px', borderRadius: 12, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                RANK 02 · VISUAL DASHBOARD
+              </div>
+
+              <div>
+                <div style={{ width: 52, height: 52, borderRadius: 14, background: 'rgba(255, 255, 255, 0.06)', border: '1px solid rgba(255, 255, 255, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b3ce8', marginBottom: 24 }}>
+                  <IconMonitor size={26} color="#6b3ce8" />
+                </div>
+
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#6b3ce8', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8 }}>
+                  SPEED RANK 02 · WEB STUDIO
+                </div>
+
+                <h3 className="font-heading" style={{ fontSize: 26, fontWeight: 700, color: '#ffffff', marginBottom: 16 }}>
+                  Web Studio Website App
+                </h3>
+
+                <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 14, color: '#827e99', lineHeight: 1.65, fontWeight: 300, marginBottom: 24 }}>
+                  Interactive Web3 application suite. Provides visual control for CopyMint whale wallet mirroring, 1-click sniper wallet generator/importer, automated scheduled mints, and live multi-chain collection scanner.
+                </p>
+              </div>
+
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 12, color: '#827e99' }}>Execution Latency</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#ffffff' }}>~ 25ms (Next Fastest)</span>
+              </div>
+            </div>
+
+            {/* 3. TELEGRAM BOT (MOBILE CONVENIENCE) */}
+            <div
+              style={{
+                background: 'rgba(20, 19, 26, 0.85)',
+                border: '1px solid rgba(250, 8%, 20%, 0.6)',
+                borderRadius: '20px',
+                padding: '36px',
+                position: 'relative',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+                justify: 'space-between',
+              }}
+            >
+              <div style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(0, 136, 204, 0.2)', color: '#0088cc', border: '1px solid rgba(0, 136, 204, 0.4)', fontSize: 10, fontWeight: 700, padding: '4px 12px', borderRadius: 12, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                RANK 03 · MOBILE SNIPING
+              </div>
+
+              <div>
+                <div style={{ width: 52, height: 52, borderRadius: 14, background: 'rgba(0, 136, 204, 0.15)', border: '1px solid rgba(0, 136, 204, 0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0088cc', marginBottom: 24 }}>
+                  <IconTelegram size={26} color="#0088cc" />
+                </div>
+
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#0088cc', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8 }}>
+                  SPEED RANK 03 · TELEGRAM BOT
+                </div>
+
+                <h3 className="font-heading" style={{ fontSize: 26, fontWeight: 700, color: '#ffffff', marginBottom: 16 }}>
+                  Telegram Bot (@MintoBabyBot)
+                </h3>
+
+                <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 14, color: '#827e99', lineHeight: 1.65, fontWeight: 300, marginBottom: 24 }}>
+                  On-the-go mobile sniper integration. Receive instant push notifications the second a target collection deploys, run chat-command snipes, monitor wallet balances, and configure gas limits anywhere directly on Telegram.
+                </p>
+              </div>
+
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 12, color: '#827e99' }}>Execution Latency</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#0088cc' }}>Mobile Instant Chat</span>
+              </div>
+            </div>
+
           </div>
         </div>
       </section>
@@ -1244,7 +1411,7 @@ export default function MintoBabyStudio() {
           
           <div>
             <div style={{ fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.14em', color: '#6b3ce8', marginBottom: 12 }}>
-              ABOUT MINTOBABY
+              ABOUT MINTOBABY &amp; BOT INTERFACES
             </div>
             <h2
               className="font-heading"
@@ -1256,20 +1423,26 @@ export default function MintoBabyStudio() {
                 marginBottom: 24,
               }}
             >
-              Built by 8 senior specialists. High speed by design.
+              Three ways to deploy. High speed by design.
             </h2>
 
             <div style={{ fontFamily: "'Inter', sans-serif", fontWeight: 300, color: '#827e99', fontSize: 16, lineHeight: 1.7, display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 32 }}>
               <p>
-                MINTOBABY was engineered to eliminate execution delays in Web3 minting. Powered by custom Solidity Yul assembly and instant wallet key signing, MINTOBABY gives traders institutional-grade execution speed.
+                MINTOBABY was engineered to eliminate execution delays in Web3 minting. You can run and interact with the bot through <strong style={{ color: '#ffffff' }}>3 distinct interfaces ranked by speed</strong>: the <span style={{ color: '#00ff88', fontWeight: 600 }}>CLI Terminal Engine</span> for sub-10ms raw response, the <span style={{ color: '#6b3ce8', fontWeight: 600 }}>Web Studio</span> for visual CopyMint whale tracking and automated scheduling, and the <span style={{ color: '#0088cc', fontWeight: 600 }}>Telegram Bot (@MintoBabyBot)</span> for on-the-go mobile sniping.
               </p>
               <p>
-                No free tier, no compromised infrastructure. Every subscriber gets dedicated node allocation, sub-10ms mempool response, and 24/7 CopyMint tracking across Robinhood Chain, Base, Ink, and Solana.
+                Powered by custom Solidity Yul assembly and instant wallet private key signing, MINTOBABY delivers institutional-grade mempool execution across Robinhood Chain, Base, Ink L2, and Solana.
               </p>
             </div>
 
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              {['Est. 2018', '8 Senior Devs', 'Paid Access Only', '10ms Execution', 'Multi-Wallet Support'].map((chip) => (
+              {[
+                '#1 CLI Terminal (<10ms)',
+                '#2 Web Studio (~25ms)',
+                '#3 Telegram Bot (@MintoBabyBot)',
+                'Yul Assembly Engine',
+                'Paid Access Only'
+              ].map((chip) => (
                 <span
                   key={chip}
                   style={{
@@ -1302,31 +1475,44 @@ export default function MintoBabyStudio() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#00ff88' }} />
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#fff' }}>MINTOBABY MATRIX // ONLINE</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#fff' }}>TRIPLE INTERFACE SPEED MATRIX</span>
               </div>
-              <span style={{ fontSize: 11, color: '#6b3ce8', fontWeight: 600 }}>PAID ACCESS</span>
+              <span style={{ fontSize: 11, color: '#6b3ce8', fontWeight: 600 }}>ONLINE</span>
             </div>
 
-            <div style={{ background: '#0a0a0f', borderRadius: 12, padding: '24px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: 20 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 16 }}>
-                <div style={{ background: '#1c1b24', padding: '14px', borderRadius: 8 }}>
-                  <div style={{ fontSize: 10, color: '#827e99', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Execution Speed</div>
-                  <div className="font-heading" style={{ fontSize: 20, fontWeight: 700, color: '#fff' }}>10ms Response</div>
+            <div style={{ background: '#0a0a0f', borderRadius: 12, padding: '20px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: 20 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                
+                <div style={{ background: '#1c1b24', padding: '12px 16px', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: '3px solid #00ff88' }}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>1. CLI Terminal Base</div>
+                    <div style={{ fontSize: 10, color: '#827e99' }}>Fastest Raw Sub-10ms Speed</div>
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#00ff88' }}>&lt; 10ms</span>
                 </div>
-                <div style={{ background: '#1c1b24', padding: '14px', borderRadius: 8 }}>
-                  <div style={{ fontSize: 10, color: '#827e99', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Wallet Protocol</div>
-                  <div className="font-heading" style={{ fontSize: 20, fontWeight: 700, color: '#6b3ce8' }}>Generated / Import</div>
-                </div>
-              </div>
 
-              <div style={{ fontSize: 12, color: '#827e99', lineHeight: 1.5 }}>
-                <strong style={{ color: '#fff' }}>Current Status:</strong> Active mempool sniper loop running on Robinhood Chain, Base, Ink, and Solana.
+                <div style={{ background: '#1c1b24', padding: '12px 16px', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: '3px solid #6b3ce8' }}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>2. Web Studio Website</div>
+                    <div style={{ fontSize: 10, color: '#827e99' }}>Next Fastest &amp; Visual Hub</div>
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#6b3ce8' }}>~ 25ms</span>
+                </div>
+
+                <div style={{ background: '#1c1b24', padding: '12px 16px', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: '3px solid #0088cc' }}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>3. Telegram Bot (@MintoBabyBot)</div>
+                    <div style={{ fontSize: 10, color: '#827e99' }}>Mobile Chat Convenience</div>
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#0088cc' }}>Mobile Instant</span>
+                </div>
+
               </div>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11, color: '#827e99' }}>
               <span>No Free Tier · Paid Subscriptions Only</span>
-              <span style={{ color: '#6b3ce8', fontWeight: 600 }}>Senior Dev Support</span>
+              <span style={{ color: '#6b3ce8', fontWeight: 600 }}>Multi-Chain Execution</span>
             </div>
           </div>
         </div>
