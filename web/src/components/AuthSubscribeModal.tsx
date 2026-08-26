@@ -66,7 +66,7 @@ export function AuthSubscribeModal({
       priceMonthly: 49,
       priceYearly: 350,
       badge: 'Paid Only',
-      features: ['5 Active Wallet Snipers', 'Robinhood & Base Chain Access', '100ms Execution Latency', 'Telegram & Discord Alerts', 'Standard Support']
+      features: ['5 Active Wallet Snipers', 'Robinhood, Solana & Ink L2 Access', '100ms Execution Latency', 'Telegram & Discord Alerts', 'Standard Support']
     },
     {
       id: 'pro',
@@ -75,7 +75,7 @@ export function AuthSubscribeModal({
       priceMonthly: 100,
       priceYearly: 750,
       badge: 'MOST POPULAR',
-      features: ['Unlimited Wallet Snipers', 'All Chains (Robinhood, Base, Ink, Solana)', '10ms Auto-Mint Matrix Executor', 'Priority Turnkey Wallet Vaults', 'VIP Copy Trading & CopyMint Engine', '24/7 Priority Support']
+      features: ['Unlimited Wallet Snipers', 'All Chains (Robinhood, Solana, Ink L2)', '10ms Auto-Mint Matrix Executor', 'Priority Turnkey Wallet Vaults', 'VIP Copy Trading & CopyMint Engine', '24/7 Priority Support']
     },
     {
       id: 'enterprise',

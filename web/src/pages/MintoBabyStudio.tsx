@@ -54,7 +54,7 @@ const BOT_VECTORS_DATA: ProjectData[] = [
     year: '2026',
     client: 'MINTOBABY Core',
     headline: 'Sub-10ms Pending Transaction Interception & Automated Mint Execution',
-    description: 'The Mempool Sniper continuously scans pending transaction pools on Robinhood Chain, Base, and Ink L2. When a collection deployment or mint transaction is broadcast, MINTOBABY calculates gas priority and executes the mint within 10ms.',
+    description: 'The Mempool Sniper continuously scans pending transaction pools on Robinhood Chain, Ink L2, and Solana. When a collection deployment or mint transaction is broadcast, MINTOBABY calculates gas priority and executes the mint within 10ms.',
     deliverables: ['Mempool Parser', 'Gas Priority Bidding', 'Pending Tx Interceptor', 'Multi-RPC Router'],
     metrics: [
       { label: 'Latency', value: '10ms' },
@@ -70,7 +70,7 @@ const BOT_VECTORS_DATA: ProjectData[] = [
     year: '2026',
     client: 'MINTOBABY Wallet Core',
     headline: 'Instant Sniper Wallet Creation & Secure Private Key Import',
-    description: 'Generate fresh dedicated sniper wallets in 1-click or import your existing Web3 private keys (0x...). Fully compatible with Robinhood Chain, Base, Ink, and Solana for direct automated transaction execution.',
+    description: 'Generate fresh dedicated sniper wallets in 1-click or import your existing Web3 private keys (0x...). Fully compatible with Robinhood Chain, Ink L2, and Solana for direct automated transaction execution.',
     deliverables: ['1-Click Wallet Generator', 'Private Key Importer', 'Encrypted Key Storage', 'Multi-Chain Compatibility'],
     metrics: [
       { label: 'Creation Speed', value: 'Instant' },
@@ -82,7 +82,7 @@ const BOT_VECTORS_DATA: ProjectData[] = [
   {
     id: 'copymint-mirror',
     name: 'CopyMint Whale Wallet Mirroring',
-    category: 'Ink L2 & Base',
+    category: 'Ink L2 & Solana',
     year: '2026',
     client: 'MINTOBABY Alpha',
     headline: 'Real-Time Whale Tracking & Instantaneous Mirror Transactions',
@@ -412,7 +412,7 @@ export default function MintoBabyStudio() {
               animation: 'fadeUp 0.6s ease forwards 0.3s',
             }}
           >
-            Automated block-0 mempool sniping, 1-click wallet key generation, and CopyMint whale tracking across Robinhood Chain, Base, Ink L2, and Solana.
+            Automated block-0 mempool sniping, 1-click wallet key generation, and CopyMint whale tracking across Robinhood Chain, Ink L2, and Solana.
           </p>
 
           {/* CTAs */}
@@ -609,7 +609,7 @@ export default function MintoBabyStudio() {
               </h2>
             </div>
             <span style={{ fontSize: 13, color: '#827e99', fontWeight: 300 }} className="hidden-mobile">
-              04 Specialized Engines (Robinhood · Ink · Base · Solana)
+              03 Specialized Engines (Robinhood · Ink L2 · Solana)
             </span>
           </div>
 
@@ -751,7 +751,7 @@ export default function MintoBabyStudio() {
                 </div>
 
                 <h3 className="font-heading" style={{ fontSize: 26, fontWeight: 700, color: '#ffffff', marginBottom: 16 }}>
-                  CLI Terminal Base Engine
+                  CLI Terminal Core Engine
                 </h3>
 
                 <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 14, color: '#827e99', lineHeight: 1.65, fontWeight: 300, marginBottom: 24 }}>
@@ -936,7 +936,7 @@ export default function MintoBabyStudio() {
                 </p>
 
                 <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  {['5 Active Wallet Snipers', 'Robinhood & Base Chain Access', '100ms Execution Latency', 'Telegram & Discord Alerts', 'Standard Support'].map((feat, i) => (
+                  {['5 Active Wallet Snipers', 'Robinhood, Solana & Ink L2 Access', '100ms Execution Latency', 'Telegram & Discord Alerts', 'Standard Support'].map((feat, i) => (
                     <li key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#e0e0e0' }}>
                       <IconCheck size={16} color="#6b3ce8" />
                       <span>{feat}</span>
@@ -994,7 +994,7 @@ export default function MintoBabyStudio() {
                 </p>
 
                 <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  {['Unlimited Wallet Snipers', 'All Chains (Robinhood, Base, Ink, Solana)', '10ms Auto-Mint Matrix Executor', '1-Click Generated & Imported Wallets', 'VIP Copy Trading & CopyMint', '24/7 Priority Support'].map((feat, i) => (
+                  {['Unlimited Wallet Snipers', 'All Chains (Robinhood, Solana, Ink L2)', '10ms Auto-Mint Matrix Executor', '1-Click Generated & Imported Wallets', 'VIP Copy Trading & CopyMint', '24/7 Priority Support'].map((feat, i) => (
                     <li key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#ffffff', fontWeight: 500 }}>
                       <IconCheck size={16} color="#00ff88" />
                       <span>{feat}</span>
@@ -1140,10 +1140,10 @@ export default function MintoBabyStudio() {
                 Mempool Sniping
               </h3>
               <p style={{ color: '#827e99', fontSize: 14, fontWeight: 300, lineHeight: 1.6, marginBottom: 20 }}>
-                Continuous 10ms mempool transaction monitoring across Robinhood Chain, Base, and Ink L2.
+                Continuous 10ms mempool transaction monitoring across Robinhood Chain, Ink L2, and Solana.
               </p>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {['Mempool', 'Robinhood', 'Base', '10ms'].map((t) => (
+                {['Mempool', 'Robinhood', 'Ink L2', '10ms'].map((t) => (
                   <span key={t} style={{ background: '#1c1b24', color: '#827e99', fontSize: 11, padding: '4px 10px', borderRadius: 4 }}>
                     {t}
                   </span>
@@ -1335,7 +1335,7 @@ export default function MintoBabyStudio() {
                 Multi-Chain RPC Router
               </h3>
               <p style={{ color: '#827e99', fontSize: 14, fontWeight: 300, lineHeight: 1.6, marginBottom: 20 }}>
-                Redundant private RPC nodes across Robinhood Chain, Base, Ink L2, and Solana for guaranteed delivery.
+                Redundant private RPC nodes across Robinhood Chain, Ink L2, and Solana for guaranteed delivery.
               </p>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {['RPC Router', 'Redundancy', 'Low Latency', 'Solana'].map((t) => (
@@ -1376,7 +1376,7 @@ export default function MintoBabyStudio() {
               {
                 step: '01',
                 title: 'Mempool Scanning',
-                desc: 'Continuous real-time scanning of pending transaction pools across Robinhood Chain, Base, Ink L2, and Solana.',
+                desc: 'Continuous real-time scanning of pending transaction pools across Robinhood Chain, Ink L2, and Solana.',
               },
               {
                 step: '02',
@@ -1466,7 +1466,7 @@ export default function MintoBabyStudio() {
                 MINTOBABY was engineered to eliminate execution delays in Web3 minting. You can run and interact with the bot through <strong style={{ color: '#ffffff' }}>3 distinct interfaces ranked by speed</strong>: the <span style={{ color: '#00ff88', fontWeight: 600 }}>CLI Terminal Engine</span> for sub-10ms raw response, the <span style={{ color: '#6b3ce8', fontWeight: 600 }}>Web Studio</span> for visual CopyMint whale tracking and automated scheduling, and the <span style={{ color: '#0088cc', fontWeight: 600 }}>Telegram Bot (@MintoBabyBot)</span> for on-the-go mobile sniping.
               </p>
               <p>
-                Powered by custom Solidity Yul assembly and instant wallet private key signing, MINTOBABY delivers institutional-grade mempool execution across Robinhood Chain, Base, Ink L2, and Solana.
+                Powered by custom Solidity Yul assembly and instant wallet private key signing, MINTOBABY delivers institutional-grade mempool execution across Robinhood Chain, Ink L2, and Solana.
               </p>
             </div>
 
@@ -1520,7 +1520,7 @@ export default function MintoBabyStudio() {
                 
                 <div style={{ background: '#1c1b24', padding: '12px 16px', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: '3px solid #00ff88' }}>
                   <div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>1. CLI Terminal Base</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>1. CLI Terminal Engine</div>
                     <div style={{ fontSize: 10, color: '#827e99' }}>Fastest Raw Sub-10ms Speed</div>
                   </div>
                   <span style={{ fontSize: 12, fontWeight: 700, color: '#00ff88' }}>&lt; 10ms</span>
@@ -1612,7 +1612,7 @@ export default function MintoBabyStudio() {
               gap: 10,
             }}
           >
-            <span>Google Login & Buy Sub ($149)</span>
+            <span>Google Login &amp; Buy Sub ($100/mo)</span>
             <span>→</span>
           </button>
 
@@ -1628,7 +1628,7 @@ export default function MintoBabyStudio() {
               marginTop: 40,
             }}
           >
-            Robinhood · Ink L2 · Base · Solana · Generated / Imported Wallets
+            Robinhood · Ink L2 · Solana · Generated / Imported Wallets
           </div>
         </div>
       </section>
