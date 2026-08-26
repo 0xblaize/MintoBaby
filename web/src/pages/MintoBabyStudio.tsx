@@ -24,6 +24,7 @@ import {
 import { StartProjectModal } from '../components/StartProjectModal';
 import { CaseStudyModal, ProjectData } from '../components/CaseStudyModal';
 import { AuthSubscribeModal } from '../components/AuthSubscribeModal';
+import { WatercolorCurrentCanvas } from '../components/WatercolorCurrentCanvas';
 
 /* ── SIMPLE GEOMETRIC GOOGLE-STYLE LOGO MARK ── */
 function MintoLogo({ size = 32 }: { size?: number }) {
@@ -138,6 +139,7 @@ export default function MintoBabyStudio() {
 
   return (
     <div style={{ background: '#0a0a0f', color: '#f5f5f5', minHeight: '100vh', position: 'relative' }}>
+      <WatercolorCurrentCanvas />
       
       {/* ── 1. NAVBAR (WIDER & SLEEK WITH SIMPLE GEOMETRIC LOGO) ── */}
       <header
@@ -294,7 +296,7 @@ export default function MintoBabyStudio() {
           minHeight: 'calc(100vh - 65px)',
           display: 'flex',
           alignItems: 'center',
-          background: '#0a0a0f',
+          background: 'transparent',
           overflow: 'hidden',
           paddingTop: '40px',
           paddingBottom: '90px',
@@ -570,7 +572,7 @@ export default function MintoBabyStudio() {
       </section>
 
       {/* ── 3. BOT EXECUTION VECTORS ── */}
-      <section id="bot-vectors" style={{ padding: '100px 5vw', background: '#0a0a0f', borderTop: '1px solid rgba(250, 8%, 20%, 0.5)' }}>
+      <section id="bot-vectors" style={{ padding: '100px 5vw', background: 'rgba(10, 10, 15, 0.55)', borderTop: '1px solid rgba(250, 8%, 20%, 0.5)' }}>
         <div style={{ maxWidth: '1600px', margin: '0 auto' }}>
           
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '60px' }}>
@@ -679,7 +681,7 @@ export default function MintoBabyStudio() {
       </section>
 
       {/* ── 4. PRICING & PAID SUBSCRIPTIONS SECTION ── */}
-      <section id="pricing" style={{ padding: '100px 5vw', background: '#0e0d14', borderTop: '1px solid rgba(250, 8%, 20%, 0.6)' }}>
+      <section id="pricing" style={{ padding: '100px 5vw', background: 'rgba(14, 13, 20, 0.55)', borderTop: '1px solid rgba(250, 8%, 20%, 0.6)' }}>
         <div style={{ maxWidth: '1600px', margin: '0 auto' }}>
           
           <div style={{ textAlign: 'center', marginBottom: '60px' }}>
@@ -877,7 +879,7 @@ export default function MintoBabyStudio() {
       </section>
 
       {/* ── 5. BOT SERVICES SECTION ── */}
-      <section id="services" style={{ padding: '100px 5vw', background: '#0a0a0f', borderTop: '1px solid rgba(250, 8%, 20%, 0.5)' }}>
+      <section id="services" style={{ padding: '100px 5vw', background: 'rgba(10, 10, 15, 0.55)', borderTop: '1px solid rgba(250, 8%, 20%, 0.5)' }}>
         <div style={{ maxWidth: '1600px', margin: '0 auto' }}>
           
           <div style={{ marginBottom: '60px' }}>
@@ -1146,7 +1148,7 @@ export default function MintoBabyStudio() {
       </section>
 
       {/* ── 6. HOW THE BOT WORKS SECTION ── */}
-      <section id="process" style={{ padding: '100px 5vw', background: '#0a0a0f', borderTop: '1px solid rgba(250, 8%, 20%, 0.5)' }}>
+      <section id="process" style={{ padding: '100px 5vw', background: 'rgba(10, 10, 15, 0.55)', borderTop: '1px solid rgba(250, 8%, 20%, 0.5)' }}>
         <div style={{ maxWidth: '1600px', margin: '0 auto' }}>
           
           <div style={{ marginBottom: '60px' }}>
@@ -1237,7 +1239,7 @@ export default function MintoBabyStudio() {
       </section>
 
       {/* ── 7. ABOUT SECTION ── */}
-      <section id="about" style={{ padding: '100px 5vw', background: '#0a0a0f', borderTop: '1px solid rgba(250, 8%, 20%, 0.5)' }}>
+      <section id="about" style={{ padding: '100px 5vw', background: 'rgba(10, 10, 15, 0.55)', borderTop: '1px solid rgba(250, 8%, 20%, 0.5)' }}>
         <div style={{ maxWidth: '1600px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: '60px', alignItems: 'center' }} className="about-split">
           
           <div>
