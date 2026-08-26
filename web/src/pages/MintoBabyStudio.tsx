@@ -302,8 +302,9 @@ export default function MintoBabyStudio() {
         )}
       </header>
 
-      {/* ── 2. HERO SECTION (SPACED DOWN & TIGHTENED TEXT) ── */}
+      {/* ── 2. HERO SECTION ── */}
       <section
+        className="hero-section"
         style={{
           position: 'relative',
           minHeight: 'calc(100vh - 65px)',
@@ -377,7 +378,7 @@ export default function MintoBabyStudio() {
 
           {/* Headline H1 (Shifted Down & Scaled Cleanly) */}
           <h1
-            className="font-heading"
+            className="font-heading hero-h1"
             style={{
               fontSize: 'clamp(46px, 7vw, 110px)',
               fontWeight: 700,
@@ -398,6 +399,7 @@ export default function MintoBabyStudio() {
 
           {/* Shortened Subtitle Paragraph */}
           <p
+            className="hero-p"
             style={{
               fontFamily: "'Inter', sans-serif",
               fontWeight: 300,
@@ -1730,11 +1732,27 @@ export default function MintoBabyStudio() {
           .show-mobile-btn {
             display: block !important;
           }
+          .hero-section {
+            min-height: auto !important;
+            padding-top: 20px !important;
+            padding-bottom: 30px !important;
+          }
           .hero-left-col {
             max-width: 100% !important;
             padding-left: 5vw !important;
             padding-right: 5vw !important;
-            padding-top: 10px !important;
+            padding-top: 0px !important;
+            margin-top: 0px !important;
+          }
+          .hero-h1 {
+            font-size: clamp(34px, 8.5vw, 52px) !important;
+            line-height: 1.0 !important;
+            white-space: normal !important;
+            margin-bottom: 14px !important;
+          }
+          .hero-p {
+            font-size: 14px !important;
+            margin-bottom: 20px !important;
           }
           .hero-floating-cards {
             display: none !important;
@@ -1750,9 +1768,9 @@ export default function MintoBabyStudio() {
             grid-template-columns: 1fr !important;
             gap: 36px !important;
           }
-          section {
-            padding-top: 60px !important;
-            padding-bottom: 60px !important;
+          section:not(.hero-section) {
+            padding-top: 50px !important;
+            padding-bottom: 50px !important;
           }
           h1, h2 {
             font-size: clamp(32px, 8vw, 48px) !important;
