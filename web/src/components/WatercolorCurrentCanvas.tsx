@@ -66,28 +66,45 @@ export const WatercolorCurrentCanvas: React.FC = () => {
     const particles: WaveParticle[] = [];
     const maxParticles = 180;
 
-    // Full unified color palette starting from purple downward
-    const getPaletteColorForPosition = (y: number, energy: number) => {
+    // Smooth Palette Progression matching Primary (#6b3ce8) & Secondary Accents (#c77dff, #3a86ff, #00ff88)
+    const getSmoothPaletteColor = (y: number, energy: number) => {
       const ratio = Math.max(0, Math.min(1, y / height));
 
+      // Key color palette stops:
+      // 0.0 (Top): Deep Primary Purple (256°)
+      // 0.35 (Upper-Mid): Electric Violet Accent (275°)
+      // 0.70 (Lower-Mid): Soft Royal Indigo / Magenta (295° -> 230°)
+      // 1.00 (Bottom): Emerald Teal Secondary Accent (165° - #00ff88)
+
       let hue: number;
-      if (ratio < 0.33) {
-        hue = 265 + (ratio / 0.33) * 25; // Purple -> Violet
-      } else if (ratio < 0.66) {
-        const midRatio = (ratio - 0.33) / 0.33;
-        hue = 290 - midRatio * 50; // Violet -> Indigo / Blue
+      let sat: number;
+      let light: number;
+
+      if (ratio < 0.35) {
+        const t = ratio / 0.35;
+        hue = 256 + t * 20; // 256 -> 276 (Primary Electric Purple to Violet)
+        sat = 82 + t * 6;
+        light = 54 + t * 6;
+      } else if (ratio < 0.7) {
+        const t = (ratio - 0.35) / 0.35;
+        hue = 276 - t * 46; // 276 -> 230 (Violet to Electric Royal Blue)
+        sat = 88;
+        light = 60;
       } else {
-        const botRatio = (ratio - 0.66) / 0.34;
-        hue = 240 - botRatio * 75; // Blue -> Cyan & Emerald
+        const t = (ratio - 0.7) / 0.3;
+        hue = 230 - t * 70; // 230 -> 160 (Royal Blue to Emerald Cyan / #00ff88)
+        sat = 88 + t * 7;
+        light = 60 - t * 8;
       }
 
-      const sat = Math.min(100, 80 + energy * 20);
-      const baseLight = 45 + Math.min(40, energy * 35); // Brighter as movement increases
+      // Smoothly boost lightness & saturation as cursor movement energy increases
+      const dynamicSat = Math.min(100, sat + energy * 12);
+      const dynamicLight = Math.min(85, light + energy * 22);
 
-      return { hue, sat, baseLight };
+      return { hue, sat: dynamicSat, baseLight: dynamicLight };
     };
 
-    // Spawn tighter, localized watercolor wave particles right around the pointer
+    // Spawn localized watercolor wave particles right around the pointer
     const spawnWaveDisturbance = (
       x: number,
       y: number,
@@ -96,9 +113,8 @@ export const WatercolorCurrentCanvas: React.FC = () => {
       speed: number
     ) => {
       const energy = mouseRef.current.movementEnergy;
-      const { hue, sat, baseLight } = getPaletteColorForPosition(y, energy);
+      const { hue, sat, baseLight } = getSmoothPaletteColor(y, energy);
 
-      // Reduced area of effect: smaller cluster size & tighter radius
       const clusterSize = Math.min(5, 1 + Math.floor(speed * 0.2));
 
       for (let i = 0; i < clusterSize; i++) {
@@ -107,12 +123,11 @@ export const WatercolorCurrentCanvas: React.FC = () => {
         }
 
         const offsetAngle = Math.random() * Math.PI * 2;
-        const offsetDist = Math.random() * (8 + speed * 1.2); // Tighter localized spread
+        const offsetDist = Math.random() * (8 + speed * 1.2);
 
         const spawnX = x + Math.cos(offsetAngle) * offsetDist;
         const spawnY = y + Math.sin(offsetAngle) * offsetDist;
 
-        // Reduced area of effect particle radius
         const radius = 8 + Math.random() * 8 + energy * 10;
         const maxRadius = radius + 12 + Math.random() * 15 + speed * 1.5;
 
@@ -160,12 +175,10 @@ export const WatercolorCurrentCanvas: React.FC = () => {
       mouse.moving = true;
       mouse.lastMoveTime = Date.now();
 
-      // Accumulate energy
       mouse.movementEnergy = Math.min(1.0, mouse.movementEnergy + 0.08 + mouse.speed * 0.005);
 
-      // Compute liquid website UI displacement target
-      const normX = (mouse.x / width - 0.5) * 2; // -1 to 1
-      const normY = (mouse.y / height - 0.5) * 2; // -1 to 1
+      const normX = (mouse.x / width - 0.5) * 2;
+      const normY = (mouse.y / height - 0.5) * 2;
 
       mouse.uiTargetX = normX * 12 + mouse.vx * 0.4;
       mouse.uiTargetY = normY * 10 + mouse.vy * 0.4;
@@ -196,7 +209,6 @@ export const WatercolorCurrentCanvas: React.FC = () => {
       if (isMouseStopped) {
         mouse.moving = false;
         mouse.movementEnergy *= 0.88;
-        // Ease liquid website UI back to resting state
         mouse.uiTargetX *= 0.9;
         mouse.uiTargetY *= 0.9;
         mouse.uiRotX *= 0.9;
@@ -208,14 +220,12 @@ export const WatercolorCurrentCanvas: React.FC = () => {
       mouse.uiCurrentX += (mouse.uiTargetX - mouse.uiCurrentX) * 0.1;
       mouse.uiCurrentY += (mouse.uiTargetY - mouse.uiCurrentY) * 0.1;
 
-      // Calculate fluid wave sway
       const fluidSwayX = Math.sin(mouse.wavePhase) * (mouse.moving ? 3 : 0.8);
       const fluidSwayY = Math.cos(mouse.wavePhase * 0.8) * (mouse.moving ? 2.5 : 0.6);
 
       const totalX = mouse.uiCurrentX + fluidSwayX;
       const totalY = mouse.uiCurrentY + fluidSwayY;
 
-      // Apply liquid wave transform to website container
       const websiteWrapper = document.getElementById('liquid-website-wrapper');
       if (websiteWrapper) {
         websiteWrapper.style.transform = `translate3d(${totalX.toFixed(2)}px, ${totalY.toFixed(2)}px, 0) rotateX(${mouse.uiRotX.toFixed(2)}deg) rotateY(${mouse.uiRotY.toFixed(2)}deg)`;
@@ -241,7 +251,6 @@ export const WatercolorCurrentCanvas: React.FC = () => {
             p.radius += 0.8;
           }
 
-          // Water Wave Ripple Equations
           p.phase += p.frequency;
           const waveDistortionX = Math.sin(p.phase + p.baseY * 0.02) * p.amplitude;
           const waveDistortionY = Math.cos(p.phase + p.baseX * 0.02) * (p.amplitude * 0.7);
@@ -263,7 +272,7 @@ export const WatercolorCurrentCanvas: React.FC = () => {
             continue;
           }
 
-          // Draw Soft Tighter Watercolor Blob
+          // Draw Soft Smooth Palette Color Blob
           const radialGrad = ctx.createRadialGradient(
             p.x,
             p.y,
