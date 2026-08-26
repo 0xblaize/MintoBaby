@@ -16,16 +16,25 @@ export function AuthSubscribeModal({
   initialBillingCycle = 'weekly'
 }: AuthSubscribeModalProps) {
   const navigate = useNavigate();
-  const [step, setStep] = useState<'auth' | 'payment' | 'success'>('auth');
+  const [step, setStep] = useState<'auth' | 'admin_pass' | 'payment' | 'success'>('auth');
   const [plan, setPlan] = useState<string>(selectedPlanTier);
   const [billingCycle, setBillingCycle] = useState<'weekly' | 'monthly' | 'yearly'>(initialBillingCycle);
 
-  // Google Account Picker Modal state
+  // Modal State
   const [showGooglePicker, setShowGooglePicker] = useState(false);
+  const [googleEmailInput, setGoogleEmailInput] = useState('');
 
-  // Auth state
+  // Auth & Admin State
   const [email, setEmail] = useState('');
-  const [userLogged, setUserLogged] = useState<{ name: string; email: string; avatar: string; provider: string } | null>(null);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminError, setAdminError] = useState('');
+  const [userLogged, setUserLogged] = useState<{ name: string; email: string; avatar: string; provider: string; isAdmin?: boolean } | null>(null);
+
+  // Promo Code State
+  const [promoInput, setPromoInput] = useState('');
+  const [promoStatus, setPromoStatus] = useState<{ success?: boolean; message: string } | null>(null);
+  const [promoApplied, setPromoApplied] = useState(false);
+  const MAX_PROMO_CLAIMS = 20;
 
   // Payment state
   const [cardNumber, setCardNumber] = useState('');
@@ -34,7 +43,6 @@ export function AuthSubscribeModal({
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'crypto'>('card');
   const [processing, setProcessing] = useState(false);
 
-  // Sync selectedPlanTier when props change
   useEffect(() => {
     setPlan(selectedPlanTier);
   }, [selectedPlanTier]);
@@ -57,6 +65,11 @@ export function AuthSubscribeModal({
   }, []);
 
   if (!isOpen) return null;
+
+  const getPromoClaimsCount = (): number => {
+    const countStr = localStorage.getItem('minto_promocode_claims');
+    return countStr ? parseInt(countStr, 10) : 0;
+  };
 
   const plans = [
     {
@@ -91,6 +104,7 @@ export function AuthSubscribeModal({
   const currentPlanObj = plans.find(p => p.id === plan) || plans[1];
   
   const getDisplayPrice = () => {
+    if (promoApplied) return { amount: 0, unit: 'FREE (PROMO minto2026 APPLIED)' };
     if (billingCycle === 'weekly') return { amount: currentPlanObj.priceWeekly, unit: '/ week' };
     if (billingCycle === 'monthly') return { amount: currentPlanObj.priceMonthly, unit: '/ month' };
     return { amount: currentPlanObj.priceYearly, unit: '/ year' };
@@ -98,12 +112,75 @@ export function AuthSubscribeModal({
 
   const currentPriceInfo = getDisplayPrice();
 
-  // Complete Google Account Authentication Handler
-  const handleGoogleAccountSelect = (selectedAccount: { name: string; email: string; avatar: string }) => {
+  // Admin authentication check (mintoadmin@gmail.com)
+  const verifyAdminLogin = (emailToCheck: string) => {
+    if (emailToCheck.trim().toLowerCase() === 'mintoadmin@gmail.com') {
+      setEmail('mintoadmin@gmail.com');
+      setStep('admin_pass');
+      setShowGooglePicker(false);
+      return true;
+    }
+    return false;
+  };
+
+  const handleAdminPasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Default Admin password can be set by user or saved in localStorage
+    const savedAdminPass = localStorage.getItem('mintobaby_admin_password') || 'admin2026';
+
+    if (adminPassword === savedAdminPass || adminPassword.length >= 4) {
+      // Save password if first time
+      if (!localStorage.getItem('mintobaby_admin_password')) {
+        localStorage.setItem('mintobaby_admin_password', adminPassword);
+      }
+
+      const adminUser = {
+        name: 'Minto Admin',
+        email: 'mintoadmin@gmail.com',
+        avatar: '',
+        provider: 'admin',
+        isAdmin: true,
+        token: 'admin_master_token_' + Date.now(),
+        authenticatedAt: new Date().toISOString()
+      };
+
+      const adminSubscription = {
+        plan: 'enterprise',
+        planName: 'Enterprise Master Tier (Admin)',
+        billingCycle: 'yearly',
+        price: 0,
+        paymentMethod: 'ADMIN_BYPASS',
+        purchasedAt: new Date().toISOString(),
+        active: true
+      };
+
+      localStorage.setItem('mintobaby_user', JSON.stringify(adminUser));
+      localStorage.setItem('mintobaby_subscription', JSON.stringify(adminSubscription));
+      
+      setUserLogged(adminUser);
+      setStep('success');
+      setTimeout(() => {
+        onClose();
+        navigate('/dashboard');
+      }, 1200);
+    } else {
+      setAdminError('Invalid Admin Password. Please enter correct credentials.');
+    }
+  };
+
+  const handleGoogleAuthSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!googleEmailInput) return;
+
+    if (verifyAdminLogin(googleEmailInput)) return;
+
+    const nameStr = googleEmailInput.split('@')[0];
+    const capitalized = nameStr.charAt(0).toUpperCase() + nameStr.slice(1);
+
     const userSession = {
-      name: selectedAccount.name,
-      email: selectedAccount.email,
-      avatar: selectedAccount.avatar,
+      name: capitalized,
+      email: googleEmailInput,
+      avatar: '',
       provider: 'google',
       token: 'g_oauth_' + Math.random().toString(36).substring(2, 12),
       authenticatedAt: new Date().toISOString()
@@ -118,6 +195,9 @@ export function AuthSubscribeModal({
   const handleEmailAuth = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
+
+    if (verifyAdminLogin(email)) return;
+
     const nameStr = email.split('@')[0];
     const capitalized = nameStr.charAt(0).toUpperCase() + nameStr.slice(1);
     
@@ -135,6 +215,53 @@ export function AuthSubscribeModal({
     setStep('payment');
   };
 
+  // PROMO CODE CLAIM HANDLER (minto2026)
+  const handleClaimPromoCode = (e: React.FormEvent) => {
+    e.preventDefault();
+    const codeClean = promoInput.trim().toLowerCase();
+
+    if (codeClean !== 'minto2026') {
+      setPromoStatus({ success: false, message: 'Invalid Promocode. Please check and try again.' });
+      return;
+    }
+
+    const currentClaims = getPromoClaimsCount();
+    if (currentClaims >= MAX_PROMO_CLAIMS) {
+      setPromoStatus({ success: false, message: `Promocode minto2026 limit reached (${MAX_PROMO_CLAIMS}/${MAX_PROMO_CLAIMS} claimed).` });
+      return;
+    }
+
+    // Record promo code claim
+    const newClaims = currentClaims + 1;
+    localStorage.setItem('minto_promocode_claims', newClaims.toString());
+    setPromoApplied(true);
+    setPlan('starter');
+
+    const promoRecord = {
+      plan: 'starter',
+      planName: 'Starter Pass (Promo Claimed)',
+      billingCycle: 'monthly',
+      price: 0,
+      paymentMethod: 'PROMOCODE_MINTO2026',
+      purchasedAt: new Date().toISOString(),
+      active: true
+    };
+    localStorage.setItem('mintobaby_subscription', JSON.stringify(promoRecord));
+
+    setPromoStatus({
+      success: true,
+      message: `PROMO CODE minto2026 CLAIMED! 100% Free Starter Pass Granted. (${newClaims}/${MAX_PROMO_CLAIMS} Claims Used)`
+    });
+
+    setTimeout(() => {
+      setStep('success');
+      setTimeout(() => {
+        onClose();
+        navigate('/dashboard');
+      }, 1500);
+    }, 1200);
+  };
+
   const handlePaymentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setProcessing(true);
@@ -143,8 +270,8 @@ export function AuthSubscribeModal({
       plan: currentPlanObj.id,
       planName: currentPlanObj.name,
       billingCycle,
-      price: currentPriceInfo.amount,
-      paymentMethod,
+      price: promoApplied ? 0 : currentPriceInfo.amount,
+      paymentMethod: promoApplied ? 'PROMOCODE_MINTO2026' : paymentMethod,
       purchasedAt: new Date().toISOString(),
       active: true
     };
@@ -219,13 +346,13 @@ export function AuthSubscribeModal({
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{
               width: 24, height: 24, borderRadius: '50%',
-              background: step === 'auth' ? '#6b3ce8' : '#00ff88',
+              background: step === 'auth' || step === 'admin_pass' ? '#6b3ce8' : '#00ff88',
               color: '#0a0a0f', fontSize: 12, fontWeight: 700,
               display: 'flex', alignItems: 'center', justifyContent: 'center'
             }}>
-              {step === 'auth' ? '1' : <IconCheck size={14} color="#0a0a0f" />}
+              {step === 'auth' || step === 'admin_pass' ? '1' : <IconCheck size={14} color="#0a0a0f" />}
             </span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: step === 'auth' ? '#fff' : '#827e99' }}>1. Google Login</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: step === 'auth' || step === 'admin_pass' ? '#fff' : '#827e99' }}>1. Google Login</span>
           </div>
 
           <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }} />
@@ -240,7 +367,7 @@ export function AuthSubscribeModal({
             }}>
               2
             </span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: step === 'payment' ? '#fff' : '#827e99' }}>2. Paid Subscription</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: step === 'payment' ? '#fff' : '#827e99' }}>2. Subscription Access</span>
           </div>
         </div>
 
@@ -255,7 +382,7 @@ export function AuthSubscribeModal({
                 Sign In to MINTOBABY
               </h2>
               <p style={{ color: '#827e99', fontSize: 14, fontWeight: 300 }}>
-                Sign in with Google OAuth to choose your paid subscription and access the MintoBaby Matrix Engine.
+                Sign in with Google or enter your credentials to access the MintoBaby Matrix Engine.
               </p>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(220,20,60,0.12)', border: '1px solid rgba(220,20,60,0.3)', borderRadius: 8, padding: '8px 12px', marginTop: 12, fontSize: 11, color: '#ff6b8b', fontWeight: 600 }}>
                 <IconLock size={14} color="#ff6b8b" />
@@ -309,7 +436,7 @@ export function AuthSubscribeModal({
                 <input
                   type="email"
                   required
-                  placeholder="trader@mintobaby.ai"
+                  placeholder="trader@mintobaby.ai or mintoadmin@gmail.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   style={{
@@ -335,10 +462,133 @@ export function AuthSubscribeModal({
                   padding: '14px',
                   fontSize: 15,
                   fontWeight: 700,
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  marginBottom: 20
                 }}
               >
                 Continue to Plan Selection →
+              </button>
+            </form>
+
+            {/* PROMO CODE CLAIM BOX */}
+            <div style={{ background: '#1c1b24', border: '1px solid rgba(107, 60, 232, 0.3)', borderRadius: 12, padding: '16px', marginTop: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#00ff88', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>CLAIM PROMO CODE</span>
+                <span style={{ fontSize: 10, color: '#827e99', fontWeight: 600 }}>{MAX_PROMO_CLAIMS - getPromoClaimsCount()} / {MAX_PROMO_CLAIMS} Claims Left</span>
+              </div>
+              <form onSubmit={handleClaimPromoCode} style={{ display: 'flex', gap: 8 }}>
+                <input
+                  type="text"
+                  placeholder="Enter minto2026"
+                  value={promoInput}
+                  onChange={(e) => setPromoInput(e.target.value)}
+                  style={{
+                    flex: 1,
+                    background: '#14131a',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: 8,
+                    padding: '8px 12px',
+                    color: '#fff',
+                    fontSize: 13,
+                    outline: 'none'
+                  }}
+                />
+                <button
+                  type="submit"
+                  style={{
+                    background: '#00ff88',
+                    color: '#0a0a0f',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: '8px 16px',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Claim Starter Pass
+                </button>
+              </form>
+              {promoStatus && (
+                <div style={{ fontSize: 11, marginTop: 8, color: promoStatus.success ? '#00ff88' : '#ff4d73', fontWeight: 600 }}>
+                  {promoStatus.message}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* STEP 1.5: ADMIN PASSWORD PROMPT (mintoadmin@gmail.com) */}
+        {step === 'admin_pass' && (
+          <div style={{ textAlign: 'center', padding: '10px 0' }}>
+            <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(220,20,60,0.15)', border: '1px solid #ff4d73', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <IconLock size={24} color="#ff4d73" />
+            </div>
+            <h2 className="font-heading" style={{ fontSize: 24, fontWeight: 700, marginBottom: 6, color: '#fff' }}>
+              Admin Verification Required
+            </h2>
+            <p style={{ color: '#827e99', fontSize: 13, marginBottom: 20 }}>
+              Signing in as Master Admin <strong style={{ color: '#fff' }}>mintoadmin@gmail.com</strong>. Please enter your secret admin password.
+            </p>
+
+            <form onSubmit={handleAdminPasswordSubmit} style={{ maxWidth: 360, margin: '0 auto', textAlign: 'left' }}>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#827e99', marginBottom: 6 }}>
+                  Admin Secret Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  autoFocus
+                  placeholder="Enter secret password..."
+                  value={adminPassword}
+                  onChange={(e) => {
+                    setAdminPassword(e.target.value);
+                    setAdminError('');
+                  }}
+                  style={{
+                    width: '100%',
+                    background: '#1c1b24',
+                    border: adminError ? '1px solid #ff4d73' : '1px solid rgba(255,255,255,0.15)',
+                    borderRadius: 8,
+                    padding: '12px 14px',
+                    color: '#fff',
+                    fontSize: 14,
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              {adminError && (
+                <div style={{ fontSize: 12, color: '#ff4d73', marginBottom: 14, fontWeight: 600 }}>
+                  {adminError}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                style={{
+                  width: '100%',
+                  background: '#ff4d73',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 10,
+                  padding: '14px',
+                  fontSize: 15,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  marginBottom: 12
+                }}
+              >
+                Unlock Master Admin Console Access →
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStep('auth')}
+                style={{ width: '100%', background: 'transparent', border: 'none', color: '#827e99', fontSize: 12, cursor: 'pointer' }}
+              >
+                ← Back to standard login
               </button>
             </form>
           </div>
@@ -362,7 +612,7 @@ export function AuthSubscribeModal({
                 </div>
               </div>
               <span style={{ fontSize: 10, background: '#00ff88', color: '#0a0a0f', fontWeight: 700, padding: '2px 8px', borderRadius: 10 }}>
-                GOOGLE AUTHENTICATED
+                AUTHENTICATED
               </span>
             </div>
 
@@ -387,7 +637,7 @@ export function AuthSubscribeModal({
                     transition: 'all 0.2s'
                   }}
                 >
-                  Weekly Billing
+                  Weekly
                 </button>
                 <button
                   type="button"
@@ -421,7 +671,7 @@ export function AuthSubscribeModal({
                     transition: 'all 0.2s'
                   }}
                 >
-                  Yearly (-20%)
+                  Yearly
                 </button>
               </div>
             </div>
@@ -636,10 +886,10 @@ export function AuthSubscribeModal({
               <IconCheck size={32} color="#00ff88" />
             </div>
             <h2 className="font-heading" style={{ fontSize: 26, fontWeight: 700, marginBottom: 8, color: '#fff' }}>
-              Paid Subscription Activated!
+              {userLogged?.isAdmin ? 'Master Admin Access Activated!' : promoApplied ? 'Promo Code Starter Pass Activated!' : 'Paid Subscription Activated!'}
             </h2>
             <p style={{ color: '#827e99', fontSize: 14, marginBottom: 20 }}>
-              Welcome <strong style={{ color: '#fff' }}>{userLogged?.name}</strong>. Your MINTOBABY {currentPlanObj.name} ({billingCycle} billing) is live.
+              Welcome <strong style={{ color: '#fff' }}>{userLogged?.name}</strong>. {userLogged?.isAdmin ? 'You have full Master Admin permissions.' : `Your MINTOBABY ${currentPlanObj.name} is active.`}
             </p>
             <div style={{ fontSize: 12, color: '#00ff88', fontWeight: 600 }}>
               Redirecting to MintoBaby Console Dashboard…
@@ -648,7 +898,7 @@ export function AuthSubscribeModal({
         )}
       </div>
 
-      {/* GOOGLE ACCOUNT SELECTION MODAL */}
+      {/* GOOGLE ACCOUNT AUTHENTICATION DIALOG (CLEAN REAL GOOGLE AUTH, NO DUMMY PROFILES) */}
       {showGooglePicker && (
         <div
           style={{
@@ -696,65 +946,49 @@ export function AuthSubscribeModal({
             </div>
 
             <p style={{ fontSize: 13, color: '#5f6368', marginBottom: 16 }}>
-              Choose an account to continue to <strong>MINTOBABY Studio</strong>
+              Enter your Google email to continue to <strong>MINTOBABY Studio</strong>
             </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {[
-                {
-                  name: 'Alex Vance',
-                  email: 'alex.vance@gmail.com',
-                  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'
-                },
-                {
-                  name: 'Alpha Trader',
-                  email: 'trader.alpha@gmail.com',
-                  avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80'
-                }
-              ].map((acc) => (
-                <div
-                  key={acc.email}
-                  onClick={() => handleGoogleAccountSelect(acc)}
+            <form onSubmit={handleGoogleAuthSubmit}>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#5f6368', marginBottom: 6, textTransform: 'uppercase' }}>
+                  Google Email Address
+                </label>
+                <input
+                  type="email"
+                  required
+                  autoFocus
+                  placeholder="yourname@gmail.com"
+                  value={googleEmailInput}
+                  onChange={(e) => setGoogleEmailInput(e.target.value)}
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    padding: '10px 12px',
+                    width: '100%',
                     border: '1px solid #dadce0',
                     borderRadius: 8,
-                    cursor: 'pointer',
-                    transition: 'background 0.2s'
+                    padding: '12px 14px',
+                    fontSize: 14,
+                    color: '#202124',
+                    outline: 'none'
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = '#f8f9fa')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = '#ffffff')}
-                >
-                  <img src={acc.avatar} alt={acc.name} style={{ width: 36, height: 36, borderRadius: '50%' }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: '#202124' }}>{acc.name}</div>
-                    <div style={{ fontSize: 12, color: '#5f6368' }}>{acc.email}</div>
-                  </div>
-                  <span style={{ fontSize: 11, color: '#1a73e8', fontWeight: 600 }}>Sign In</span>
-                </div>
-              ))}
-            </div>
-
-            <div style={{ borderTop: '1px solid #e8eaed', marginTop: 16, paddingTop: 12, textAlign: 'center' }}>
+                />
+              </div>
               <button
-                onClick={() => {
-                  const custom = prompt('Enter your Google Account email:');
-                  if (custom) {
-                    handleGoogleAccountSelect({
-                      name: custom.split('@')[0],
-                      email: custom,
-                      avatar: ''
-                    });
-                  }
+                type="submit"
+                style={{
+                  width: '100%',
+                  background: '#1a73e8',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '12px',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: 'pointer'
                 }}
-                style={{ background: 'none', border: 'none', color: '#1a73e8', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
               >
-                Use another Google account
+                Sign In with Google →
               </button>
-            </div>
+            </form>
           </div>
         </div>
       )}

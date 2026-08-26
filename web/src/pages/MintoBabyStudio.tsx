@@ -342,30 +342,34 @@ export default function MintoBabyStudio() {
           }}
         />
 
-        {/* Hero Left Content Container (Shifted Down with paddingTop: 40px) */}
+        {/* Hero Left Content Container */}
         <div
           style={{
             position: 'relative',
             zIndex: 10,
             paddingLeft: '5vw',
             paddingRight: '2vw',
-            paddingTop: '50px',
-            maxWidth: '58%',
+            paddingTop: '20px',
+            maxWidth: '65%',
             width: '100%',
           }}
           className="hero-left-col"
         >
-          {/* Streamlined Label */}
+          {/* Streamlined Label Badge */}
           <div
             style={{
-              fontSize: 10,
+              fontSize: 11,
               fontFamily: "'Inter', sans-serif",
-              fontWeight: 500,
+              fontWeight: 600,
               textTransform: 'uppercase',
               letterSpacing: '0.14em',
-              color: '#6b3ce8',
-              marginBottom: 18,
-              display: 'flex',
+              color: '#bfa3ff',
+              background: 'rgba(107, 60, 232, 0.12)',
+              border: '1px solid rgba(107, 60, 232, 0.35)',
+              padding: '6px 14px',
+              borderRadius: 20,
+              marginBottom: 22,
+              display: 'inline-flex',
               alignItems: 'center',
               gap: 8,
               opacity: 0,
@@ -380,34 +384,34 @@ export default function MintoBabyStudio() {
           <h1
             className="font-heading hero-h1"
             style={{
-              fontSize: 'clamp(46px, 7vw, 110px)',
-              fontWeight: 700,
+              fontSize: 'clamp(52px, 7.5vw, 120px)',
+              fontWeight: 800,
               color: '#ffffff',
-              lineHeight: 0.88,
-              letterSpacing: '-0.02em',
-              marginBottom: 20,
+              lineHeight: 0.90,
+              letterSpacing: '-0.025em',
+              marginBottom: 24,
               whiteSpace: 'pre-line',
               opacity: 0,
               animation: 'fadeUp 0.6s ease forwards 0.2s',
             }}
           >
             THE FASTEST{'\n'}ONCHAIN BOT{'\n'}
-            <span style={{ color: '#6b3ce8', position: 'relative', display: 'inline-block' }}>
+            <span style={{ color: '#6b3ce8', position: 'relative', display: 'inline-block', textShadow: '0 0 40px rgba(107, 60, 232, 0.45)' }}>
               EVER BUILT.
             </span>
           </h1>
 
-          {/* Shortened Subtitle Paragraph */}
+          {/* Subtitle Paragraph */}
           <p
             className="hero-p"
             style={{
               fontFamily: "'Inter', sans-serif",
               fontWeight: 300,
-              color: '#827e99',
-              fontSize: 'clamp(14px, 1.3vw, 18px)',
-              lineHeight: 1.5,
-              maxWidth: 520,
-              marginBottom: 32,
+              color: '#a09cb8',
+              fontSize: 'clamp(16px, 1.4vw, 20px)',
+              lineHeight: 1.6,
+              maxWidth: 580,
+              marginBottom: 36,
               opacity: 0,
               animation: 'fadeUp 0.6s ease forwards 0.3s',
             }}
@@ -432,20 +436,20 @@ export default function MintoBabyStudio() {
                 background: '#6b3ce8',
                 color: '#ffffff',
                 border: 'none',
-                borderRadius: 8,
-                padding: '13px 26px',
-                fontSize: 13,
-                fontWeight: 600,
+                borderRadius: 10,
+                padding: '16px 32px',
+                fontSize: 15,
+                fontWeight: 700,
                 cursor: 'pointer',
-                boxShadow: '0 0 25px rgba(107, 60, 232, 0.45)',
+                boxShadow: '0 0 35px rgba(107, 60, 232, 0.55)',
                 transition: 'all 0.2s ease',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 8,
+                gap: 10,
               }}
             >
-              <span>Google Login & Buy Sub</span>
-              <IconArrowRight size={15} />
+              <span>Google Login &amp; Buy Sub</span>
+              <IconArrowRight size={16} />
             </button>
 
             <a
@@ -454,9 +458,9 @@ export default function MintoBabyStudio() {
                 background: 'rgba(255,255,255,0.05)',
                 color: '#fff',
                 border: '1px solid rgba(255,255,255,0.15)',
-                borderRadius: 8,
-                padding: '13px 22px',
-                fontSize: 13,
+                borderRadius: 10,
+                padding: '16px 26px',
+                fontSize: 15,
                 fontWeight: 600,
                 cursor: 'pointer',
                 textDecoration: 'none',
@@ -1696,8 +1700,9 @@ export default function MintoBabyStudio() {
           </div>
         </div>
       </footer>
+      </div>
 
-      {/* Interactive Modals */}
+      {/* Interactive Modals (Rendered Outside Liquid Wrapper for 100% Fixed Center Stability) */}
       <StartProjectModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
       <CaseStudyModal project={selectedProject} onClose={() => setSelectedProject(null)} />
       <AuthSubscribeModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} selectedPlanTier={selectedAuthPlan} initialBillingCycle={pricingCycle} />
@@ -1754,7 +1759,6 @@ export default function MintoBabyStudio() {
           }
         }
       `}</style>
-      </div>
     </div>
   );
 }
