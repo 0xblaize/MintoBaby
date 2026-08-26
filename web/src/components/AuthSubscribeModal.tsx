@@ -62,27 +62,27 @@ export function AuthSubscribeModal({
     {
       id: 'starter',
       name: 'Starter Pass',
-      priceWeekly: 15,
+      priceWeekly: 10,
       priceMonthly: 49,
-      priceYearly: 490,
+      priceYearly: 350,
       badge: 'Paid Only',
       features: ['5 Active Wallet Snipers', 'Robinhood & Base Chain Access', '100ms Execution Latency', 'Telegram & Discord Alerts', 'Standard Support']
     },
     {
       id: 'pro',
       name: 'Pro Pass',
-      priceWeekly: 45,
-      priceMonthly: 149,
-      priceYearly: 1490,
+      priceWeekly: 25,
+      priceMonthly: 100,
+      priceYearly: 750,
       badge: 'MOST POPULAR',
       features: ['Unlimited Wallet Snipers', 'All Chains (Robinhood, Base, Ink, Solana)', '10ms Auto-Mint Matrix Executor', 'Priority Turnkey Wallet Vaults', 'VIP Copy Trading & CopyMint Engine', '24/7 Priority Support']
     },
     {
       id: 'enterprise',
       name: 'Enterprise Tier',
-      priceWeekly: 119,
-      priceMonthly: 399,
-      priceYearly: 3990,
+      priceWeekly: 50,
+      priceMonthly: 200,
+      priceYearly: 1500,
       badge: 'ENTERPRISE',
       features: ['Custom AutoMintExecutor Contracts', 'Dedicated MintoBaby Engineering Team', 'Custom Turnkey Multi-sig Policies', 'White-Label Client Dashboard', '1-on-1 Strategy & Architecture']
     }
@@ -93,7 +93,7 @@ export function AuthSubscribeModal({
   const getDisplayPrice = () => {
     if (billingCycle === 'weekly') return { amount: currentPlanObj.priceWeekly, unit: '/ week' };
     if (billingCycle === 'monthly') return { amount: currentPlanObj.priceMonthly, unit: '/ month' };
-    return { amount: Math.round(currentPlanObj.priceYearly / 12), unit: '/ month (billed yearly)' };
+    return { amount: currentPlanObj.priceYearly, unit: '/ year' };
   };
 
   const currentPriceInfo = getDisplayPrice();
@@ -434,8 +434,8 @@ export function AuthSubscribeModal({
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 20 }}>
               {plans.map((p) => {
                 const active = plan === p.id;
-                const pPrice = billingCycle === 'weekly' ? p.priceWeekly : billingCycle === 'monthly' ? p.priceMonthly : Math.round(p.priceYearly / 12);
-                const pUnit = billingCycle === 'weekly' ? '/wk' : '/mo';
+                const pPrice = billingCycle === 'weekly' ? p.priceWeekly : billingCycle === 'monthly' ? p.priceMonthly : p.priceYearly;
+                const pUnit = billingCycle === 'weekly' ? '/wk' : billingCycle === 'monthly' ? '/mo' : '/yr';
 
                 return (
                   <button

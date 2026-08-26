@@ -929,10 +929,10 @@ export default function MintoBabyStudio() {
                   STARTER BOT PASS
                 </div>
                 <div className="font-heading" style={{ fontSize: 48, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
-                  ${pricingCycle === 'weekly' ? '15' : pricingCycle === 'monthly' ? '49' : '490'} <span style={{ fontSize: 16, color: '#827e99', fontWeight: 400 }}>/ {pricingCycle === 'weekly' ? 'week' : pricingCycle === 'monthly' ? 'month' : 'year'}</span>
+                  ${pricingCycle === 'weekly' ? '10' : pricingCycle === 'monthly' ? '49' : '350'} <span style={{ fontSize: 16, color: '#827e99', fontWeight: 400 }}>/ {pricingCycle === 'weekly' ? 'week' : pricingCycle === 'monthly' ? 'month' : 'year'}</span>
                 </div>
                 <p style={{ color: '#827e99', fontSize: 14, marginBottom: 24 }}>
-                  Essential wallet sniper & monitoring engine for active web3 traders.
+                  Essential wallet sniper &amp; monitoring engine for active web3 traders.
                 </p>
 
                 <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -960,7 +960,7 @@ export default function MintoBabyStudio() {
                   transition: 'all 0.2s'
                 }}
               >
-                Google Login & Buy Sub (${pricingCycle === 'weekly' ? '15/wk' : pricingCycle === 'monthly' ? '49/mo' : '490/yr'}) →
+                Google Login &amp; Buy Sub (${pricingCycle === 'weekly' ? '10/wk' : pricingCycle === 'monthly' ? '49/mo' : '350/yr'}) →
               </button>
             </div>
 
@@ -987,7 +987,7 @@ export default function MintoBabyStudio() {
                   PRO BOT DOMINATOR PASS
                 </div>
                 <div className="font-heading" style={{ fontSize: 48, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
-                  ${pricingCycle === 'weekly' ? '45' : pricingCycle === 'monthly' ? '149' : '1490'} <span style={{ fontSize: 16, color: '#827e99', fontWeight: 400 }}>/ {pricingCycle === 'weekly' ? 'week' : pricingCycle === 'monthly' ? 'month' : 'year'}</span>
+                  ${pricingCycle === 'weekly' ? '25' : pricingCycle === 'monthly' ? '100' : '750'} <span style={{ fontSize: 16, color: '#827e99', fontWeight: 400 }}>/ {pricingCycle === 'weekly' ? 'week' : pricingCycle === 'monthly' ? 'month' : 'year'}</span>
                 </div>
                 <p style={{ color: '#827e99', fontSize: 14, marginBottom: 24 }}>
                   Full multi-chain auto-mint matrix executor with 10ms priority execution.
@@ -1019,7 +1019,7 @@ export default function MintoBabyStudio() {
                   transition: 'all 0.2s'
                 }}
               >
-                Google Login & Buy Sub (${pricingCycle === 'weekly' ? '45/wk' : pricingCycle === 'monthly' ? '149/mo' : '1490/yr'}) →
+                Google Login &amp; Buy Sub (${pricingCycle === 'weekly' ? '25/wk' : pricingCycle === 'monthly' ? '100/mo' : '750/yr'}) →
               </button>
             </div>
 
@@ -1041,7 +1041,7 @@ export default function MintoBabyStudio() {
                   ENTERPRISE BOT TIER
                 </div>
                 <div className="font-heading" style={{ fontSize: 48, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
-                  ${pricingCycle === 'weekly' ? '119' : pricingCycle === 'monthly' ? '399' : '3990'} <span style={{ fontSize: 16, color: '#827e99', fontWeight: 400 }}>/ {pricingCycle === 'weekly' ? 'week' : pricingCycle === 'monthly' ? 'month' : 'year'}</span>
+                  ${pricingCycle === 'weekly' ? '50' : pricingCycle === 'monthly' ? '200' : '1500'} <span style={{ fontSize: 16, color: '#827e99', fontWeight: 400 }}>/ {pricingCycle === 'weekly' ? 'week' : pricingCycle === 'monthly' ? 'month' : 'year'}</span>
                 </div>
                 <p style={{ color: '#827e99', fontSize: 14, marginBottom: 24 }}>
                   Enterprise design system, custom smart contracts, and dedicated engineering team.
@@ -1072,7 +1072,7 @@ export default function MintoBabyStudio() {
                   transition: 'all 0.2s'
                 }}
               >
-                Google Login & Buy Sub (${pricingCycle === 'weekly' ? '119/wk' : pricingCycle === 'monthly' ? '399/mo' : '3990/yr'}) →
+                Google Login &amp; Buy Sub (${pricingCycle === 'weekly' ? '50/wk' : pricingCycle === 'monthly' ? '200/mo' : '1500/yr'}) →
               </button>
             </div>
 
@@ -1732,27 +1732,11 @@ export default function MintoBabyStudio() {
           .show-mobile-btn {
             display: block !important;
           }
-          .hero-section {
-            min-height: auto !important;
-            padding-top: 20px !important;
-            padding-bottom: 30px !important;
-          }
           .hero-left-col {
             max-width: 100% !important;
             padding-left: 5vw !important;
             padding-right: 5vw !important;
-            padding-top: 0px !important;
-            margin-top: 0px !important;
-          }
-          .hero-h1 {
-            font-size: clamp(34px, 8.5vw, 52px) !important;
-            line-height: 1.0 !important;
-            white-space: normal !important;
-            margin-bottom: 14px !important;
-          }
-          .hero-p {
-            font-size: 14px !important;
-            margin-bottom: 20px !important;
+            padding-top: 30px !important;
           }
           .hero-floating-cards {
             display: none !important;
@@ -1767,13 +1751,6 @@ export default function MintoBabyStudio() {
           .about-split {
             grid-template-columns: 1fr !important;
             gap: 36px !important;
-          }
-          section:not(.hero-section) {
-            padding-top: 50px !important;
-            padding-bottom: 50px !important;
-          }
-          h1, h2 {
-            font-size: clamp(32px, 8vw, 48px) !important;
           }
         }
       `}</style>
