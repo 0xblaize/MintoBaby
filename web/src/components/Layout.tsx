@@ -70,13 +70,15 @@ export function Layout() {
   const shortCode = activationCode.slice(0, 14) + '…';
 
   useEffect(() => {
-    const isAuthorized =
+    const hasSession = Boolean(localStorage.getItem('mintobaby_session')) || localStorage.getItem('mintobaby_user_logged_in') === 'true';
+    const hasPaidOrActivated =
       localStorage.getItem('mintobaby_user_logged_in') === 'true' ||
-      Boolean(localStorage.getItem('mintobaby_subscription')) ||
-      Boolean(localStorage.getItem('mintobaby_session'));
+      Boolean(localStorage.getItem('mintobaby_subscription'));
 
-    if (!isAuthorized) {
+    if (!hasSession) {
       navigate('/login', { replace: true });
+    } else if (!hasPaidOrActivated) {
+      navigate('/subscribe', { replace: true });
     }
   }, [navigate]);
 
