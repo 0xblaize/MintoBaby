@@ -3,15 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getUserActivationCode } from '../utils/activation';
 import { api } from '../api';
-import { WatercolorCurrentCanvas } from '../components/WatercolorCurrentCanvas';
 import {
   MintoLogo,
   IconArrowRight,
   IconCheck,
-  IconKey,
-  IconBolt,
-  IconShieldCheck,
-  IconZap
+  IconKey
 } from '../components/Icons';
 
 export default function SubscribePage() {
@@ -167,20 +163,14 @@ export default function SubscribePage() {
       overflow: 'hidden',
       zIndex: 9999
     }}>
-      {/* Liquid Canvas Backdrop */}
-      <div style={{ position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none' }}>
-        <WatercolorCurrentCanvas />
-      </div>
-
-      {/* Ambient Glow */}
+      {/* Ambient Radial Glow - Static Background */}
       <div style={{
         position: 'absolute',
         width: 600,
         height: 600,
         borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(124,90,240,0.2) 0%, rgba(13,13,18,0) 70%)',
-        pointerEvents: 'none',
-        zIndex: 2
+        background: 'radial-gradient(circle, rgba(124,90,240,0.15) 0%, rgba(13,13,18,0) 70%)',
+        pointerEvents: 'none'
       }} />
 
       {/* Centered Single-Page Gating Container (Zero Scrolling) */}
@@ -188,8 +178,7 @@ export default function SubscribePage() {
         width: '100%',
         maxWidth: 780,
         maxHeight: '94vh',
-        background: 'rgba(19, 18, 26, 0.92)',
-        backdropFilter: 'blur(20px)',
+        background: '#13121a',
         border: '1px solid rgba(124, 90, 240, 0.4)',
         borderRadius: 20,
         padding: '32px 36px',
