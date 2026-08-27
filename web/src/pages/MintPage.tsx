@@ -3,35 +3,37 @@ import { useLocation } from 'react-router-dom';
 import { api } from '../api';
 import type { MintResult, DiscoveryResult } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
+import { IconBolt, IconSearch, IconCheck, IconExternalLink } from '../components/Icons';
 
 const EXPLORER = 'https://robinhoodchain.blockscout.com';
 
 const inp: React.CSSProperties = {
-  background: '#1a1a24', border: '1px solid #2a2a3a', borderRadius: 8,
+  background: '#12111a', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: 8,
   padding: '12px 16px', color: '#e0e0ff', fontSize: 14, outline: 'none', width: '100%',
 };
-const label: React.CSSProperties = { fontSize: 12, color: '#555', marginBottom: 6, display: 'block' };
+const label: React.CSSProperties = { fontSize: 12, color: '#827e99', marginBottom: 6, display: 'block', fontWeight: 600 };
 const field = (extra?: object): React.CSSProperties => ({ marginBottom: 16, ...extra });
 const btn = (color = '#00ff88', disabled = false): React.CSSProperties => ({
-  background: disabled ? '#1a1a24' : 'transparent',
-  border: `1px solid ${disabled ? '#333' : color}`,
+  background: disabled ? '#171622' : 'transparent',
+  border: `1px solid ${disabled ? '#2a2a3a' : color}`,
   borderRadius: 8, padding: '12px 24px', color: disabled ? '#555' : color,
-  cursor: disabled ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 600,
+  cursor: disabled ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 700,
+  display: 'inline-flex', alignItems: 'center', gap: 8
 });
 
 export default function MintPage() {
-  const loc      = useLocation();
-  const state    = loc.state as { contract?: string; price?: string } | null;
+  const loc = useLocation();
+  const state = loc.state as { contract?: string; price?: string } | null;
 
   const [contract, setContract] = useState(state?.contract ?? '');
-  const [qty,      setQty]      = useState('1');
-  const [value,    setValue]    = useState(state?.price ?? '0');
-  const [pk,       setPk]       = useState('');
+  const [qty, setQty] = useState('1');
+  const [value, setValue] = useState(state?.price ?? '0');
+  const [pk, setPk] = useState('');
   const [scanning, setScanning] = useState(false);
-  const [minting,  setMinting]  = useState(false);
-  const [info,     setInfo]     = useState<DiscoveryResult | null>(null);
-  const [result,   setResult]   = useState<MintResult | null>(null);
-  const [error,    setError]    = useState('');
+  const [minting, setMinting] = useState(false);
+  const [info, setInfo] = useState<DiscoveryResult | null>(null);
+  const [result, setResult] = useState<MintResult | null>(null);
+  const [error, setError] = useState('');
 
   async function doScan() {
     if (!contract.trim()) return;
@@ -57,18 +59,22 @@ export default function MintPage() {
   }
 
   return (
-    <div>
-      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 24 }}>Mint Now</h1>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
+    <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+      <h1 style={{ fontSize: 26, fontWeight: 900, marginBottom: 24, color: '#ffffff', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <IconBolt size={24} color="#00ff88" />
+        <span>Direct Mint Execution</span>
+      </h1>
 
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
         {/* Left: form */}
-        <div>
+        <div style={{ background: '#12111a', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 14, padding: 24 }}>
           <div style={field()}>
             <label style={label}>Contract Address</label>
             <div style={{ display: 'flex', gap: 8 }}>
               <input style={inp} value={contract} onChange={e => setContract(e.target.value)} placeholder="0x..." />
-              <button style={{ ...btn('#888'), whiteSpace: 'nowrap' }} onClick={doScan} disabled={scanning}>
-                {scanning ? '…' : 'Scan'}
+              <button style={{ ...btn('#827e99'), whiteSpace: 'nowrap' }} onClick={doScan} disabled={scanning}>
+                <IconSearch size={14} />
+                <span>{scanning ? '…' : 'Scan'}</span>
               </button>
             </div>
           </div>
@@ -88,20 +94,21 @@ export default function MintPage() {
           </div>
           {error && <div style={{ color: '#ff4444', fontSize: 13, marginBottom: 12 }}>{error}</div>}
           <button style={btn('#00ff88', minting || !contract || !pk)} onClick={doMint} disabled={minting || !contract || !pk}>
-            {minting ? 'Minting...' : 'Execute Mint'}
+            <IconBolt size={16} />
+            <span>{minting ? 'Minting in progress...' : 'Execute Instant Mint'}</span>
           </button>
         </div>
 
         {/* Right: info + result */}
         <div>
           {info && (
-            <div style={{ background: '#1a1a24', border: '1px solid #2a2a3a', borderRadius: 12, padding: 20, marginBottom: 16 }}>
+            <div style={{ background: '#12111a', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 14, padding: 20, marginBottom: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                <div style={{ fontWeight: 700 }}>{info.name ?? 'Unknown'} {info.symbol && `(${info.symbol})`}</div>
+                <div style={{ fontWeight: 700, color: '#ffffff' }}>{info.name ?? 'Unknown'} {info.symbol && `(${info.symbol})`}</div>
                 <StatusBadge status={info.phase_status} />
               </div>
-              <div style={{ fontSize: 13, color: '#888' }}>Price: <span style={{ color: '#00ff88' }}>{info.price_eth} ETH</span></div>
-              {!info.is_live && <div style={{ fontSize: 12, color: '#ffd700', marginTop: 8 }}>⚠ Mint is not currently live</div>}
+              <div style={{ fontSize: 13, color: '#827e99' }}>Price: <span style={{ color: '#00ff88', fontWeight: 700 }}>{info.price_eth} ETH</span></div>
+              {!info.is_live && <div style={{ fontSize: 12, color: '#ffd700', marginTop: 8 }}>Mint is not currently live on-chain</div>}
             </div>
           )}
 
@@ -109,31 +116,36 @@ export default function MintPage() {
             <div style={{
               background: result.success ? '#0d1f0d' : '#1f0d0d',
               border: `1px solid ${result.success ? '#00ff88' : '#ff4444'}`,
-              borderRadius: 12, padding: 20,
+              borderRadius: 14, padding: 20,
             }}>
               {result.success ? (
                 <>
-                  <div style={{ color: '#00ff88', fontWeight: 700, fontSize: 16, marginBottom: 12 }}>✅ MINT CONFIRMED!</div>
-                  <div style={{ fontSize: 13, display: 'grid', gap: 6 }}>
-                    <div>Block: <span style={{ color: '#e0e0ff' }}>{result.block_number}</span></div>
-                    <div>Gas: <span style={{ color: '#e0e0ff' }}>{result.gas_used}</span></div>
-                    <div>Function: <span style={{ color: '#e0e0ff', fontFamily: 'monospace' }}>{result.function_used}</span></div>
+                  <div style={{ color: '#00ff88', fontWeight: 800, fontSize: 16, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <IconCheck size={18} />
+                    <span>MINT CONFIRMED</span>
+                  </div>
+                  <div style={{ fontSize: 13, display: 'grid', gap: 6, color: '#827e99' }}>
+                    <div>Block: <span style={{ color: '#ffffff', fontWeight: 600 }}>{result.block_number}</span></div>
+                    <div>Gas: <span style={{ color: '#ffffff', fontWeight: 600 }}>{result.gas_used}</span></div>
+                    <div>Function: <span style={{ color: '#00ff88', fontFamily: 'monospace' }}>{result.function_used}</span></div>
                     <div style={{ marginTop: 8 }}>
                       <a href={`${EXPLORER}/tx/${result.tx_hash}`} target="_blank" rel="noreferrer"
-                        style={{ color: '#00ff88', fontSize: 12 }}>
-                        View on Blockscout ↗
+                        style={{ color: '#00ff88', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}>
+                        <span>View Transaction on Blockscout</span>
+                        <IconExternalLink size={12} />
                       </a>
                     </div>
                   </div>
                 </>
               ) : (
                 <>
-                  <div style={{ color: '#ff4444', fontWeight: 700, marginBottom: 8 }}>❌ MINT FAILED</div>
+                  <div style={{ color: '#ff4444', fontWeight: 800, marginBottom: 8 }}>MINT FAILED</div>
                   <div style={{ fontSize: 13, color: '#ccc' }}>{result.error}</div>
                   {result.tx_hash && (
                     <a href={`${EXPLORER}/tx/${result.tx_hash}`} target="_blank" rel="noreferrer"
-                      style={{ color: '#ff8888', fontSize: 12, marginTop: 8, display: 'block' }}>
-                      View TX on Blockscout ↗
+                      style={{ color: '#ff8888', fontSize: 12, marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}>
+                      <span>View TX on Blockscout</span>
+                      <IconExternalLink size={12} />
                     </a>
                   )}
                 </>

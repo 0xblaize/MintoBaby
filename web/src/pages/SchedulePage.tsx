@@ -2,17 +2,20 @@ import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import type { DiscoveryResult, ScheduledMint } from '../types';
+import { IconClock, IconSearch, IconCheck, IconZap } from '../components/Icons';
 
 const inp: React.CSSProperties = {
-  background: '#1a1a24', border: '1px solid #2a2a3a', borderRadius: 8,
+  background: '#12111a', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: 8,
   padding: '12px 16px', color: '#e0e0ff', fontSize: 14, outline: 'none', width: '100%',
 };
-const label: React.CSSProperties = { fontSize: 12, color: '#555', marginBottom: 6, display: 'block' };
+const label: React.CSSProperties = { fontSize: 12, color: '#827e99', marginBottom: 6, display: 'block', fontWeight: 600 };
 const field = (extra?: object): React.CSSProperties => ({ marginBottom: 16, ...extra });
 const btn = (color = '#00ff88', disabled = false): React.CSSProperties => ({
-  background: 'transparent', border: `1px solid ${disabled ? '#333' : color}`, borderRadius: 8,
-  padding: '12px 24px', color: disabled ? '#555' : color,
-  cursor: disabled ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 600,
+  background: disabled ? '#171622' : 'transparent',
+  border: `1px solid ${disabled ? '#2a2a3a' : color}`,
+  borderRadius: 8, padding: '12px 24px', color: disabled ? '#555' : color,
+  cursor: disabled ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 700,
+  display: 'inline-flex', alignItems: 'center', gap: 8
 });
 
 function useCountdown(targetMs?: number) {
@@ -32,21 +35,21 @@ function useCountdown(targetMs?: number) {
 }
 
 export default function SchedulePage() {
-  const loc   = useLocation();
-  const nav   = useNavigate();
+  const loc = useLocation();
+  const nav = useNavigate();
   const state = loc.state as { contract?: string; price?: string; mintTimeMs?: number } | null;
 
-  const [contract,  setContract]  = useState(state?.contract ?? '');
-  const [qty,       setQty]       = useState('1');
-  const [value,     setValue]     = useState(state?.price ?? '0');
-  const [pk,        setPk]        = useState('');
+  const [contract, setContract] = useState(state?.contract ?? '');
+  const [qty, setQty] = useState('1');
+  const [value, setValue] = useState(state?.price ?? '0');
+  const [pk, setPk] = useState('');
   const [mintTimeMs, setMintTimeMs] = useState<number | undefined>(state?.mintTimeMs);
   const [timeInput, setTimeInput] = useState('');
-  const [scanning,  setScanning]  = useState(false);
-  const [arming,    setArming]    = useState(false);
-  const [info,      setInfo]      = useState<DiscoveryResult | null>(null);
-  const [armed,     setArmed]     = useState<ScheduledMint | null>(null);
-  const [error,     setError]     = useState('');
+  const [scanning, setScanning] = useState(false);
+  const [arming, setArming] = useState(false);
+  const [info, setInfo] = useState<DiscoveryResult | null>(null);
+  const [armed, setArmed] = useState<ScheduledMint | null>(null);
+  const [error, setError] = useState('');
 
   const countdown = useCountdown(mintTimeMs);
 
@@ -88,43 +91,50 @@ export default function SchedulePage() {
   }
 
   return (
-    <div>
-      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 24 }}>⏰ Schedule Mint</h1>
+    <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+      <h1 style={{ fontSize: 26, fontWeight: 900, marginBottom: 24, color: '#ffffff', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <IconClock size={24} color="#ffd700" />
+        <span>Quantum Drop Scheduler</span>
+      </h1>
 
       {armed ? (
-        <div style={{ background: '#0d1f0d', border: '1px solid #00ff88', borderRadius: 12, padding: 28, textAlign: 'center' }}>
-          <div style={{ fontSize: 22, fontWeight: 700, color: '#00ff88', marginBottom: 8 }}>✅ Sniper Armed!</div>
-          <div style={{ color: '#888', marginBottom: 16 }}>Schedule ID: <code style={{ color: '#e0e0ff' }}>{armed.id}</code></div>
-          <div style={{ fontSize: 36, fontWeight: 700, color: '#ffd700', fontFamily: 'monospace', marginBottom: 16 }}>
+        <div style={{ background: '#0d1f0d', border: '1px solid #00ff88', borderRadius: 14, padding: 32, textAlign: 'center' }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#00ff88', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <IconCheck size={24} />
+            <span>Sniper Armed & Ready</span>
+          </div>
+          <div style={{ color: '#827e99', marginBottom: 16 }}>Schedule ID: <code style={{ color: '#ffffff' }}>{armed.id}</code></div>
+          <div style={{ fontSize: 40, fontWeight: 900, color: '#ffd700', fontFamily: 'monospace', marginBottom: 16, letterSpacing: '0.05em' }}>
             {countdown}
           </div>
-          <div style={{ color: '#888', fontSize: 13, marginBottom: 20 }}>
+          <div style={{ color: '#827e99', fontSize: 13, marginBottom: 20 }}>
             Contract: {armed.contract}<br />
             Qty: {armed.quantity} · Value: {armed.value_eth} ETH
           </div>
-          <button style={btn()} onClick={() => nav('/schedules')}>View All Schedules</button>
+          <button style={btn('#00ff88')} onClick={() => nav('/schedules')}>View Active Schedules</button>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
-          <div>
+          <div style={{ background: '#12111a', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 14, padding: 24 }}>
             <div style={field()}>
               <label style={label}>Contract Address</label>
               <div style={{ display: 'flex', gap: 8 }}>
                 <input style={inp} value={contract} onChange={e => setContract(e.target.value)} placeholder="0x..." />
-                <button style={{ ...btn('#888'), whiteSpace: 'nowrap' }} onClick={doScan} disabled={scanning}>
-                  {scanning ? '…' : 'Scan'}
+                <button style={{ ...btn('#827e99'), whiteSpace: 'nowrap' }} onClick={doScan} disabled={scanning}>
+                  <IconSearch size={14} />
+                  <span>{scanning ? '…' : 'Scan'}</span>
                 </button>
               </div>
             </div>
 
             {/* Mint time */}
-            <div style={{ background: '#1a1a24', border: '1px solid #2a2a3a', borderRadius: 10, padding: 16, marginBottom: 16 }}>
-              <label style={label}>Mint Time</label>
+            <div style={{ background: '#171622', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 10, padding: 16, marginBottom: 16 }}>
+              <label style={label}>Mint Trigger Time</label>
               {mintTimeMs ? (
                 <div>
-                  <div style={{ color: '#ffd700', fontSize: 28, fontWeight: 700, fontFamily: 'monospace' }}>{countdown}</div>
-                  <div style={{ fontSize: 11, color: '#555', marginTop: 4 }}>{new Date(mintTimeMs).toUTCString()}</div>
-                  <button onClick={() => setMintTimeMs(undefined)} style={{ ...btn('#555'), padding: '4px 10px', fontSize: 12, marginTop: 8 }}>Change</button>
+                  <div style={{ color: '#ffd700', fontSize: 28, fontWeight: 900, fontFamily: 'monospace' }}>{countdown}</div>
+                  <div style={{ fontSize: 11, color: '#827e99', marginTop: 4 }}>{new Date(mintTimeMs).toUTCString()}</div>
+                  <button onClick={() => setMintTimeMs(undefined)} style={{ ...btn('#827e99'), padding: '4px 10px', fontSize: 12, marginTop: 8 }}>Change Time</button>
                 </div>
               ) : (
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -152,23 +162,24 @@ export default function SchedulePage() {
             {error && <div style={{ color: '#ff4444', fontSize: 13, marginBottom: 12 }}>{error}</div>}
             <button style={btn('#00ff88', arming || !contract || !pk || !mintTimeMs)}
               onClick={doArm} disabled={arming || !contract || !pk || !mintTimeMs}>
-              {arming ? '⏳ Arming…' : '🎯 Arm Sniper'}
+              <IconZap size={16} />
+              <span>{arming ? 'Arming Sniper...' : 'Arm Drop Sniper'}</span>
             </button>
           </div>
 
           {info && (
-            <div style={{ background: '#1a1a24', border: '1px solid #2a2a3a', borderRadius: 12, padding: 20, height: 'fit-content' }}>
-              <div style={{ fontWeight: 700, marginBottom: 12 }}>{info.name ?? 'Unknown'} {info.symbol && `(${info.symbol})`}</div>
+            <div style={{ background: '#12111a', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 14, padding: 20, height: 'fit-content' }}>
+              <div style={{ fontWeight: 800, marginBottom: 12, color: '#ffffff' }}>{info.name ?? 'Unknown'} {info.symbol && `(${info.symbol})`}</div>
               {[
-                ['Price',        `${info.price_eth} ETH`],
-                ['Phase',        info.phase_status],
-                ['Kind',         info.phase_kind],
-                ['Max/Wallet',   info.max_per_wallet ? String(info.max_per_wallet) : 'Unlimited'],
+                ['Price', `${info.price_eth} ETH`],
+                ['Phase', info.phase_status],
+                ['Kind', info.phase_kind],
+                ['Max/Wallet', info.max_per_wallet ? String(info.max_per_wallet) : 'Unlimited'],
                 ['On-chain open', info.on_chain_start_time_ms ? new Date(info.on_chain_start_time_ms).toUTCString() : 'Unknown'],
               ].map(([k, v]) => (
                 <div key={k} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 13 }}>
-                  <span style={{ color: '#555' }}>{k}</span>
-                  <span style={{ color: '#e0e0ff' }}>{v}</span>
+                  <span style={{ color: '#827e99' }}>{k}</span>
+                  <span style={{ color: '#ffffff', fontWeight: 600 }}>{v}</span>
                 </div>
               ))}
             </div>

@@ -112,10 +112,11 @@ export function AuthSubscribeModal({
 
   const currentPriceInfo = getDisplayPrice();
 
-  // Admin authentication check (mintoadmin@gmail.com)
+  // Admin authentication check (mintoadmin@gmail.com or dummy@gmail.com)
   const verifyAdminLogin = (emailToCheck: string) => {
-    if (emailToCheck.trim().toLowerCase() === 'mintoadmin@gmail.com') {
-      setEmail('mintoadmin@gmail.com');
+    const clean = emailToCheck.trim().toLowerCase();
+    if (clean === 'mintoadmin@gmail.com' || clean === 'dummy@gmail.com') {
+      setEmail(clean);
       setStep('admin_pass');
       setShowGooglePicker(false);
       return true;
@@ -136,7 +137,7 @@ export function AuthSubscribeModal({
 
       const adminUser = {
         name: 'Minto Admin',
-        email: 'mintoadmin@gmail.com',
+        email: email || 'dummy@gmail.com',
         avatar: '',
         provider: 'admin',
         isAdmin: true,
@@ -436,7 +437,7 @@ export function AuthSubscribeModal({
                 <input
                   type="email"
                   required
-                  placeholder="trader@mintobaby.ai or mintoadmin@gmail.com"
+                  placeholder="trader@mintobaby.ai or dummy@gmail.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   style={{
@@ -528,7 +529,7 @@ export function AuthSubscribeModal({
               Admin Verification Required
             </h2>
             <p style={{ color: '#827e99', fontSize: 13, marginBottom: 20 }}>
-              Signing in as Master Admin <strong style={{ color: '#fff' }}>mintoadmin@gmail.com</strong>. Please enter your secret admin password.
+              Signing in as Master Admin <strong style={{ color: '#fff' }}>dummy@gmail.com</strong>. Please enter your secret admin password.
             </p>
 
             <form onSubmit={handleAdminPasswordSubmit} style={{ maxWidth: 360, margin: '0 auto', textAlign: 'left' }}>
