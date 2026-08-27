@@ -3,14 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getUserActivationCode } from '../utils/activation';
 import { api } from '../api';
+import { WatercolorCurrentCanvas } from '../components/WatercolorCurrentCanvas';
 import {
   MintoLogo,
   IconArrowRight,
-  IconCheck,
   IconKey,
-  IconBolt,
-  IconLock,
-  IconShieldCheck
+  IconShieldCheck,
+  IconZap,
+  IconCheck
 } from '../components/Icons';
 
 export default function LoginPage() {
@@ -19,13 +19,12 @@ export default function LoginPage() {
   
   const defaultCode = getUserActivationCode();
   const [activationInput, setActivationInput] = useState('');
-  const [emailInput, setEmailInput] = useState('');
   const [selectedPlan, setSelectedPlan] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
   const [authTab, setAuthTab] = useState<'key' | 'pay' | 'google'>('key');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // If already logged in / paid, redirect to Setup Hub
+  // If already logged in / paid, redirect immediately to Setup Hub
   useEffect(() => {
     const isPaid = localStorage.getItem('mintobaby_user_logged_in') === 'true' || Boolean(localStorage.getItem('mintobaby_session'));
     if (user || isPaid) {
@@ -47,7 +46,7 @@ export default function LoginPage() {
         localStorage.setItem('mintobaby_user_logged_in', 'true');
         navigate('/setup');
       } else {
-        setErrorMsg('Invalid activation code. Please check your key format (MINTO-XXXX-XXXX-XXXX).');
+        setErrorMsg('Invalid activation key. Key format: MINTO-XXXX-XXXX-XXXX.');
       }
     } catch (err: any) {
       if (codeToUse.startsWith('MINTO-')) {
@@ -80,7 +79,7 @@ export default function LoginPage() {
     setTimeout(() => {
       setLoading(false);
       navigate('/setup');
-    }, 600);
+    }, 500);
   };
 
   const planPrices = {
@@ -93,75 +92,80 @@ export default function LoginPage() {
     <div style={{
       width: '100vw',
       height: '100vh',
-      minHeight: '100vh',
+      position: 'fixed',
+      inset: 0,
       background: '#0d0d12',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
       color: '#e8e6f0',
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      zIndex: 9999,
       overflow: 'hidden',
-      padding: 20,
-      boxSizing: 'border-box'
+      zIndex: 9999
     }}>
-      {/* Background ambient purple radial glow */}
+      {/* ── LIQUID CANVAS BACKDROP (Studio Liquid Physics) ── */}
+      <div style={{ position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none' }}>
+        <WatercolorCurrentCanvas />
+      </div>
+
+      {/* ── AMBIENT PURPLE RADIAL GLOW ── */}
       <div style={{
         position: 'absolute',
-        width: 500,
-        height: 500,
+        width: 600,
+        height: 600,
         borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(124,90,240,0.15) 0%, rgba(13,13,18,0) 70%)',
-        pointerEvents: 'none'
+        background: 'radial-gradient(circle, rgba(124,90,240,0.2) 0%, rgba(13,13,18,0) 70%)',
+        pointerEvents: 'none',
+        zIndex: 2
       }} />
 
-      {/* CENTERED SINGLE-PAGE AUTHENTICATION CARD */}
+      {/* ── RIGIDLY CENTERED STABLE LOGIN CARD (100% SINGLE PAGE, ZERO SCROLLING) ── */}
       <div style={{
         width: '100%',
         maxWidth: 440,
-        background: '#13121a',
-        border: '1px solid #2a2840',
-        borderRadius: 16,
+        maxHeight: '92vh',
+        background: 'rgba(19, 18, 26, 0.88)',
+        backdropFilter: 'blur(20px)',
+        border: '1px solid rgba(124, 90, 240, 0.4)',
+        borderRadius: 20,
         padding: '36px 32px',
-        boxShadow: '0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(124, 90, 240, 0.15)',
+        boxShadow: '0 25px 60px rgba(0,0,0,0.9), 0 0 40px rgba(124, 90, 240, 0.2)',
         position: 'relative',
         zIndex: 10,
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center'
+        alignItems: 'center',
+        boxSizing: 'border-box'
       }}>
-        {/* Brand Logo & Header */}
+        {/* Brand MintoLogo Header */}
         <div
           onClick={() => navigate('/')}
-          style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', marginBottom: 20 }}
+          style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', marginBottom: 18 }}
         >
-          <MintoLogo size={36} />
+          <MintoLogo size={38} />
           <div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em', lineHeight: 1 }}>
+            <div style={{ fontSize: 20, fontWeight: 900, color: '#ffffff', letterSpacing: '-0.02em', lineHeight: 1 }}>
               MintoBaby
             </div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#7c5af0', letterSpacing: '0.12em', marginTop: 3 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: '#7c5af0', letterSpacing: '0.14em', marginTop: 3 }}>
               MATRIX CONSOLE v2.0
             </div>
           </div>
         </div>
 
-        <h1 style={{ fontSize: 22, fontWeight: 800, color: '#ffffff', margin: '0 0 6px 0', letterSpacing: '-0.02em', textAlign: 'center' }}>
-          Subscribe or Enter Activation Key
+        <h1 style={{ fontSize: 22, fontWeight: 900, color: '#ffffff', margin: '0 0 6px 0', letterSpacing: '-0.02em', textAlign: 'center' }}>
+          Sign In or Unlock Access
         </h1>
-        <p style={{ fontSize: 13, color: '#9896b0', margin: '0 0 24px 0', textAlign: 'center', lineHeight: 1.5 }}>
-          All users must pay a subscription or enter an assigned activation key before launching the Matrix Console.
+        <p style={{ fontSize: 13, color: '#9896b0', margin: '0 0 20px 0', textAlign: 'center', lineHeight: 1.5 }}>
+          All users must pay a subscription or enter an assigned activation key to access the Matrix Console.
         </p>
 
-        {/* AUTH VECTOR TABS */}
+        {/* AUTH METHOD SELECTOR TABS */}
         <div style={{
           display: 'flex',
           background: '#1a1925',
           border: '1px solid #2a2840',
-          borderRadius: 8,
+          borderRadius: 10,
           padding: 3,
           width: '100%',
           marginBottom: 20
@@ -173,10 +177,10 @@ export default function LoginPage() {
               background: authTab === 'key' ? '#7c5af0' : 'transparent',
               color: authTab === 'key' ? '#ffffff' : '#9896b0',
               border: 'none',
-              borderRadius: 6,
-              padding: '8px 0',
+              borderRadius: 7,
+              padding: '9px 0',
               fontSize: 12,
-              fontWeight: 600,
+              fontWeight: 700,
               cursor: 'pointer',
               transition: 'all 0.15s'
             }}
@@ -190,10 +194,10 @@ export default function LoginPage() {
               background: authTab === 'pay' ? '#7c5af0' : 'transparent',
               color: authTab === 'pay' ? '#ffffff' : '#9896b0',
               border: 'none',
-              borderRadius: 6,
-              padding: '8px 0',
+              borderRadius: 7,
+              padding: '9px 0',
               fontSize: 12,
-              fontWeight: 600,
+              fontWeight: 700,
               cursor: 'pointer',
               transition: 'all 0.15s'
             }}
@@ -207,10 +211,10 @@ export default function LoginPage() {
               background: authTab === 'google' ? '#7c5af0' : 'transparent',
               color: authTab === 'google' ? '#ffffff' : '#9896b0',
               border: 'none',
-              borderRadius: 6,
-              padding: '8px 0',
+              borderRadius: 7,
+              padding: '9px 0',
               fontSize: 12,
-              fontWeight: 600,
+              fontWeight: 700,
               cursor: 'pointer',
               transition: 'all 0.15s'
             }}
@@ -265,7 +269,7 @@ export default function LoginPage() {
                 }}
               />
               <div style={{ fontSize: 11, color: '#6b6887', marginTop: 4 }}>
-                Enter assigned key format: MINTO-XXXX-XXXX-XXXX
+                Pairs Web Console, Telegram Bot & Terminal CLI.
               </div>
             </div>
 
@@ -278,19 +282,19 @@ export default function LoginPage() {
                 color: '#ffffff',
                 border: 'none',
                 borderRadius: 8,
-                padding: '12px',
-                fontSize: 13,
+                padding: '13px',
+                fontSize: 14,
                 fontWeight: 700,
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 8,
-                boxShadow: '0 0 20px rgba(124, 90, 240, 0.3)'
+                boxShadow: '0 0 20px rgba(124, 90, 240, 0.4)'
               }}
             >
               <span>{loading ? 'Verifying Key...' : 'Verify Activation Key'}</span>
-              <IconArrowRight size={14} />
+              <IconArrowRight size={15} />
             </button>
           </form>
         )}
@@ -303,7 +307,7 @@ export default function LoginPage() {
                 Select Billing Cycle (Pro Tier Pass)
               </label>
 
-              <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
                 {(['weekly', 'monthly', 'yearly'] as const).map((cycle) => (
                   <button
                     key={cycle}
@@ -311,10 +315,10 @@ export default function LoginPage() {
                     onClick={() => setSelectedPlan(cycle)}
                     style={{
                       flex: 1,
-                      background: selectedPlan === cycle ? 'rgba(124, 90, 240, 0.2)' : '#1a1925',
+                      background: selectedPlan === cycle ? 'rgba(124, 90, 240, 0.25)' : '#1a1925',
                       border: `1px solid ${selectedPlan === cycle ? '#7c5af0' : '#2a2840'}`,
                       borderRadius: 8,
-                      padding: '10px 6px',
+                      padding: '10px 4px',
                       color: selectedPlan === cycle ? '#ffffff' : '#9896b0',
                       fontSize: 11,
                       fontWeight: 700,
@@ -330,12 +334,11 @@ export default function LoginPage() {
               <div style={{
                 background: '#1a1925',
                 border: '1px solid #2a2840',
-                borderRadius: 8,
+                borderRadius: 10,
                 padding: '14px 16px',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: 12
+                justifyContent: 'space-between'
               }}>
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 800, color: '#ffffff' }}>MintoBaby Pro Pass</div>
@@ -356,19 +359,19 @@ export default function LoginPage() {
                 color: '#0d0d12',
                 border: 'none',
                 borderRadius: 8,
-                padding: '12px',
-                fontSize: 13,
+                padding: '13px',
+                fontSize: 14,
                 fontWeight: 800,
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 8,
-                boxShadow: '0 0 20px rgba(34, 216, 122, 0.3)'
+                boxShadow: '0 0 20px rgba(34, 216, 122, 0.4)'
               }}
             >
               <span>{loading ? 'Processing Checkout...' : `Pay ${planPrices[selectedPlan]} & Unlock Access`}</span>
-              <IconArrowRight size={14} color="#0d0d12" />
+              <IconArrowRight size={15} color="#0d0d12" />
             </button>
           </form>
         )}
@@ -399,8 +402,8 @@ export default function LoginPage() {
                 color: '#1f1f1f',
                 border: 'none',
                 borderRadius: 8,
-                padding: '12px',
-                fontSize: 13,
+                padding: '13px',
+                fontSize: 14,
                 fontWeight: 700,
                 cursor: 'pointer',
                 display: 'flex',
@@ -440,7 +443,7 @@ export default function LoginPage() {
             onClick={() => navigate('/')}
             style={{ cursor: 'pointer', color: '#9896b0', fontWeight: 500 }}
           >
-            ← Back to Landing Page
+            ← Back to Studio Landing
           </span>
           <span
             onClick={() => navigate('/setup')}
