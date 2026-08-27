@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getUserActivationCode } from '../utils/activation';
 import {
+  MintoLogo,
   IconDashboard,
   IconTelegram,
   IconTerminal,
@@ -29,32 +30,35 @@ export default function SetupPage() {
     <div style={{ maxWidth: 1200, margin: '0 auto', paddingBottom: 40 }}>
       {/* Top Banner / Welcome header */}
       <div style={{
-        background: 'linear-gradient(135deg, rgba(107, 60, 232, 0.15) 0%, rgba(0, 255, 136, 0.08) 100%)',
-        border: '1px solid rgba(107, 60, 232, 0.3)',
+        background: 'linear-gradient(135deg, rgba(107, 60, 232, 0.2) 0%, rgba(0, 255, 136, 0.08) 100%)',
+        border: '1px solid rgba(107, 60, 232, 0.5)',
         borderRadius: 16,
         padding: '32px 36px',
         marginBottom: 32,
         position: 'relative',
         overflow: 'hidden'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#00ff88', fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: '#00ff88', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>
           <IconShieldCheck size={18} color="#00ff88" />
           <span>Payment Verified & Tier Unlocked</span>
         </div>
         
-        <h1 style={{ fontSize: 32, fontWeight: 900, color: '#ffffff', marginBottom: 12, letterSpacing: '-0.02em' }}>
-          Welcome to MINTOBABY Matrix Engine
-        </h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
+          <MintoLogo size={40} />
+          <h1 style={{ fontSize: 32, fontWeight: 900, color: '#ffffff', margin: 0, letterSpacing: '-0.02em' }}>
+            Welcome to MINTOBABY Matrix Engine
+          </h1>
+        </div>
         
-        <p style={{ color: '#a0a0c0', fontSize: 15, lineHeight: 1.6, maxWidth: 800, margin: 0 }}>
-          Your payment has been successfully processed. Choose where you want to operate below. You can launch the Web Dashboard, configure your Telegram Bot for instant mobile alerts, or set up the sub-10ms High-Frequency CLI Terminal.
+        <p style={{ color: '#827e99', fontSize: 15, lineHeight: 1.6, maxWidth: 800, margin: 0 }}>
+          Your subscription is confirmed. Choose where you want to operate below. You can launch the Web Dashboard, configure your Telegram Bot for instant mobile alerts, or set up the sub-10ms High-Frequency CLI Terminal.
         </p>
 
         {/* Single Activation Code Section */}
         <div style={{
           marginTop: 24,
           padding: '20px 24px',
-          background: '#0d0d14',
+          background: '#121118',
           border: '1px solid rgba(107, 60, 232, 0.4)',
           borderRadius: 12,
           display: 'flex',
@@ -64,23 +68,23 @@ export default function SetupPage() {
           gap: 16
         }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#827e99', fontWeight: 600, marginBottom: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#827e99', fontWeight: 800, letterSpacing: '0.08em', marginBottom: 4 }}>
               <IconKey size={16} color="#6b3ce8" />
-              <span>YOUR SINGLE PERSONAL ACTIVATION CODE (1 PER USER)</span>
+              <span>SINGLE PERSONAL ACTIVATION CODE (1 PER USER)</span>
             </div>
-            <div style={{ fontSize: 12, color: '#6e6a85' }}>
+            <div style={{ fontSize: 12, color: '#827e99' }}>
               Use this unique key to activate BOTH your Telegram Bot (@MintoBabyBot) and Terminal CLI.
             </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <code style={{
-              background: '#161522',
-              border: '1px stroke rgba(255, 255, 255, 0.1)',
+              background: '#1c1b24',
+              border: '1px solid rgba(250, 8%, 20%, 0.8)',
               padding: '10px 18px',
               borderRadius: 8,
               fontSize: 18,
-              fontWeight: 800,
+              fontWeight: 900,
               color: '#00ff88',
               letterSpacing: '0.12em',
               fontFamily: 'monospace'
@@ -112,8 +116,8 @@ export default function SetupPage() {
       </div>
 
       {/* Main 3 Access Hubs */}
-      <h2 style={{ fontSize: 20, fontWeight: 800, color: '#ffffff', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
-        <IconZap size={22} color="#6b3ce8" />
+      <h2 style={{ fontSize: 18, fontWeight: 800, color: '#827e99', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <IconZap size={20} color="#6b3ce8" />
         <span>Select Your Operating Vector</span>
       </h2>
 
@@ -122,26 +126,32 @@ export default function SetupPage() {
         <div
           onClick={() => navigate('/dashboard')}
           style={{
-            background: '#12111a',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
+            background: '#121118',
+            border: '1px solid rgba(250, 8%, 20%, 0.6)',
             borderRadius: 16,
             padding: 28,
             cursor: 'pointer',
-            transition: 'all 0.2s hover',
+            transition: 'all 0.2s ease',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
             position: 'relative'
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#6b3ce8')}
-          onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)')}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = '#6b3ce8';
+            e.currentTarget.style.backgroundColor = '#1c1b24';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'rgba(250, 8%, 20%, 0.6)';
+            e.currentTarget.style.backgroundColor = '#121118';
+          }}
         >
           <div>
             <div style={{
               width: 52,
               height: 52,
               borderRadius: 12,
-              background: 'rgba(107, 60, 232, 0.15)',
+              background: 'rgba(107, 60, 232, 0.2)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -174,9 +184,9 @@ export default function SetupPage() {
             alignItems: 'center',
             justifyContent: 'space-between',
             paddingTop: 16,
-            borderTop: '1px solid rgba(255, 255, 255, 0.06)'
+            borderTop: '1px solid rgba(250, 8%, 20%, 0.6)'
           }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#6b3ce8' }}>Launch Dashboard</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#6b3ce8' }}>Launch Dashboard →</span>
             <div style={{
               width: 32,
               height: 32,
@@ -196,18 +206,24 @@ export default function SetupPage() {
         <div
           onClick={() => navigate('/telegram-guide')}
           style={{
-            background: '#12111a',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
+            background: '#121118',
+            border: '1px solid rgba(250, 8%, 20%, 0.6)',
             borderRadius: 16,
             padding: 28,
             cursor: 'pointer',
-            transition: 'all 0.2s hover',
+            transition: 'all 0.2s ease',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between'
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#00ccff')}
-          onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)')}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = '#00ccff';
+            e.currentTarget.style.backgroundColor = '#1c1b24';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'rgba(250, 8%, 20%, 0.6)';
+            e.currentTarget.style.backgroundColor = '#121118';
+          }}
         >
           <div>
             <div style={{
@@ -247,9 +263,9 @@ export default function SetupPage() {
             alignItems: 'center',
             justifyContent: 'space-between',
             paddingTop: 16,
-            borderTop: '1px solid rgba(255, 255, 255, 0.06)'
+            borderTop: '1px solid rgba(250, 8%, 20%, 0.6)'
           }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#00ccff' }}>Set Up Telegram Bot</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#00ccff' }}>Set Up Telegram Bot →</span>
             <div style={{
               width: 32,
               height: 32,
@@ -269,18 +285,24 @@ export default function SetupPage() {
         <div
           onClick={() => navigate('/terminal-guide')}
           style={{
-            background: '#12111a',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
+            background: '#121118',
+            border: '1px solid rgba(250, 8%, 20%, 0.6)',
             borderRadius: 16,
             padding: 28,
             cursor: 'pointer',
-            transition: 'all 0.2s hover',
+            transition: 'all 0.2s ease',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between'
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#00ff88')}
-          onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)')}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = '#00ff88';
+            e.currentTarget.style.backgroundColor = '#1c1b24';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'rgba(250, 8%, 20%, 0.6)';
+            e.currentTarget.style.backgroundColor = '#121118';
+          }}
         >
           <div>
             <div style={{
@@ -320,9 +342,9 @@ export default function SetupPage() {
             alignItems: 'center',
             justifyContent: 'space-between',
             paddingTop: 16,
-            borderTop: '1px solid rgba(255, 255, 255, 0.06)'
+            borderTop: '1px solid rgba(250, 8%, 20%, 0.6)'
           }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#00ff88' }}>Set Up CLI Terminal</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#00ff88' }}>Set Up CLI Terminal →</span>
             <div style={{
               width: 32,
               height: 32,
@@ -341,8 +363,8 @@ export default function SetupPage() {
 
       {/* Profile quick link banner */}
       <div style={{
-        background: '#12111a',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
+        background: '#121118',
+        border: '1px solid rgba(250, 8%, 20%, 0.6)',
         borderRadius: 12,
         padding: '20px 24px',
         display: 'flex',
@@ -359,8 +381,8 @@ export default function SetupPage() {
         <button
           onClick={() => navigate('/profile')}
           style={{
-            background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
+            background: '#1c1b24',
+            border: '1px solid rgba(250, 8%, 20%, 0.8)',
             borderRadius: 8,
             padding: '8px 16px',
             color: '#ffffff',

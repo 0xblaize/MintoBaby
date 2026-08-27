@@ -7,7 +7,7 @@ from .services.chain import ChainService, NETWORKS
 from .services.executor import ExecutorService
 from .services.scheduler import SchedulerService
 from .services.copy_mint import CopyMintService
-from .routers import wallet, discovery, mint, copymint
+from .routers import wallet, discovery, mint, copymint, auth
 
 app = FastAPI(
     title="MintoBaby Matrix API",
@@ -22,6 +22,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(wallet.router)
 app.include_router(discovery.router)
 app.include_router(mint.router)

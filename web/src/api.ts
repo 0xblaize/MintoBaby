@@ -16,6 +16,13 @@ async function req<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   health:          (): Promise<HealthResponse>       => req('/health'),
+
+  // Activation & Auth
+  activateKey:     (code: string, email?: string): Promise<{ success: boolean; message: string; code: string }> =>
+    req('/auth/activate', { method: 'POST', body: JSON.stringify({ code, email }) }),
+  verifyKey:       (code: string): Promise<{ valid: boolean }> =>
+    req('/auth/verify', { method: 'POST', body: JSON.stringify({ code }) }),
+
   getWallet:       (): Promise<WalletInfo>           => req('/wallet/'),
   generateWallet:  (): Promise<WalletInfo>           => req('/wallet/generate', { method: 'POST' }),
   importWallet:    (pk: string, network: NetworkType = 'robinhood'): Promise<WalletInfo> =>
@@ -37,7 +44,7 @@ export const api = {
 
   // Copy Minting API
   getCopyRules:    (): Promise<CopyMintRule[]>       => req('/copymint/rules'),
-  addCopyRule:     (target_wallet: string, private_key: string, network: NetworkType = 'robinhood', max_copy_quantity: number = 1, max_price_native: str = '0.5'): Promise<CopyMintRule> =>
+  addCopyRule:     (target_wallet: string, private_key: string, network: NetworkType = 'robinhood', max_copy_quantity: number = 1, max_price_native: string = '0.5'): Promise<CopyMintRule> =>
     req('/copymint/rules', { method: 'POST', body: JSON.stringify({ target_wallet, private_key, network, max_copy_quantity, max_price_native }) }),
   removeCopyRule:  (id: string): Promise<{ success: boolean }> => req(`/copymint/rules/${id}`, { method: 'DELETE' }),
 };

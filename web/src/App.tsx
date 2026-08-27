@@ -5,6 +5,7 @@ import SetupPage from './pages/SetupPage';
 import TelegramGuidePage from './pages/TelegramGuidePage';
 import TerminalGuidePage from './pages/TerminalGuidePage';
 import ProfilePage from './pages/ProfilePage';
+import LoginPage from './pages/LoginPage';
 import ScanPage from './pages/ScanPage';
 import MintPage from './pages/MintPage';
 import SchedulePage from './pages/SchedulePage';
@@ -19,6 +20,9 @@ export default function App() {
       <Routes>
         {/* Main Home Page: MINTOBABY Studio Landing Page */}
         <Route path="/" element={<MintoBabyStudio />} />
+
+        {/* Standalone 1-Page Dedicated Login Route (No scrolling!) */}
+        <Route path="login" element={<LoginPage />} />
 
         {/* Legacy /landing & /agency redirect to root "/" */}
         <Route path="landing" element={<Navigate to="/" replace />} />
