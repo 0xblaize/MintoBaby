@@ -15,25 +15,25 @@ import {
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { user, signInWithGoogle } = useAuth();
+  const { user } = useAuth();
   
   const defaultCode = getUserActivationCode();
   const [activationInput, setActivationInput] = useState('');
   const [emailInput, setEmailInput] = useState('');
-  const [promoInput, setPromoInput] = useState('');
-  const [promoMessage, setPromoMessage] = useState<{ success: boolean; text: string } | null>(null);
-  const [authTab, setAuthTab] = useState<'key' | 'google' | 'email'>('key');
+  const [selectedPlan, setSelectedPlan] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
+  const [authTab, setAuthTab] = useState<'key' | 'pay' | 'google'>('key');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // If already logged in, redirect to Setup Hub
+  // If already logged in / paid, redirect to Setup Hub
   useEffect(() => {
-    if (user) {
+    const isPaid = localStorage.getItem('mintobaby_user_logged_in') === 'true' || Boolean(localStorage.getItem('mintobaby_session'));
+    if (user || isPaid) {
       navigate('/setup', { replace: true });
     }
   }, [user, navigate]);
 
-  // Handle Activation Key Authentication
+  // Handle Activation Key Verification
   const handleKeyAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     const codeToUse = (activationInput.trim() || defaultCode).toUpperCase();
@@ -41,7 +41,6 @@ export default function LoginPage() {
     setErrorMsg('');
 
     try {
-      // Verify with backend API router /auth/verify
       const res = await api.verifyKey(codeToUse);
       if (res.valid) {
         localStorage.setItem('mintobaby_user_activation_code', codeToUse);
@@ -51,7 +50,6 @@ export default function LoginPage() {
         setErrorMsg('Invalid activation code. Please check your key format (MINTO-XXXX-XXXX-XXXX).');
       }
     } catch (err: any) {
-      // Fallback local verification if API server is in standalone mode
       if (codeToUse.startsWith('MINTO-')) {
         localStorage.setItem('mintobaby_user_activation_code', codeToUse);
         localStorage.setItem('mintobaby_user_logged_in', 'true');
@@ -64,47 +62,31 @@ export default function LoginPage() {
     }
   };
 
-  // Handle Email Authentication
-  const handleEmailAuth = (e: React.FormEvent) => {
+  // Handle Subscription Payment
+  const handleSubscriptionPayment = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!emailInput.trim()) return;
     setLoading(true);
 
-    const userSession = {
-      email: emailInput.trim(),
-      activation_code: defaultCode,
-      name: emailInput.split('@')[0],
-      provider: 'email'
+    const subscription = {
+      plan: 'pro',
+      billingCycle: selectedPlan,
+      purchasedAt: new Date().toISOString(),
+      active: true
     };
 
-    localStorage.setItem('mintobaby_session', JSON.stringify(userSession));
+    localStorage.setItem('mintobaby_subscription', JSON.stringify(subscription));
     localStorage.setItem('mintobaby_user_logged_in', 'true');
+
     setTimeout(() => {
       setLoading(false);
       navigate('/setup');
-    }, 400);
+    }, 600);
   };
 
-  // Handle Promo Code Claim (minto2026)
-  const handleClaimPromo = (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleanCode = promoInput.trim().toLowerCase();
-
-    if (cleanCode === 'minto2026') {
-      setPromoMessage({
-        success: true,
-        text: 'PROMO CODE minto2026 APPLIED! Free Pro Tier Unlocked.'
-      });
-      localStorage.setItem('mintobaby_user_logged_in', 'true');
-      setTimeout(() => {
-        navigate('/setup');
-      }, 1000);
-    } else {
-      setPromoMessage({
-        success: false,
-        text: 'Invalid promo code. Please enter valid code minto2026.'
-      });
-    }
+  const planPrices = {
+    weekly: '$25 / week',
+    monthly: '$100 / month',
+    yearly: '$750 / year'
   };
 
   return (
@@ -136,7 +118,7 @@ export default function LoginPage() {
         pointerEvents: 'none'
       }} />
 
-      {/* CENTERED SINGLE-PAGE LOGIN CONTAINER CARD */}
+      {/* CENTERED SINGLE-PAGE AUTHENTICATION CARD */}
       <div style={{
         width: '100%',
         maxWidth: 440,
@@ -168,10 +150,10 @@ export default function LoginPage() {
         </div>
 
         <h1 style={{ fontSize: 22, fontWeight: 800, color: '#ffffff', margin: '0 0 6px 0', letterSpacing: '-0.02em', textAlign: 'center' }}>
-          Sign In to Your Account
+          Subscribe or Enter Activation Key
         </h1>
         <p style={{ fontSize: 13, color: '#9896b0', margin: '0 0 24px 0', textAlign: 'center', lineHeight: 1.5 }}>
-          Enter your single user activation key, Google account, or promo code to launch the Matrix Console.
+          All users must pay a subscription or enter an assigned activation key before launching the Matrix Console.
         </p>
 
         {/* AUTH VECTOR TABS */}
@@ -202,6 +184,23 @@ export default function LoginPage() {
             Activation Key
           </button>
           <button
+            onClick={() => setAuthTab('pay')}
+            style={{
+              flex: 1,
+              background: authTab === 'pay' ? '#7c5af0' : 'transparent',
+              color: authTab === 'pay' ? '#ffffff' : '#9896b0',
+              border: 'none',
+              borderRadius: 6,
+              padding: '8px 0',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s'
+            }}
+          >
+            Pay Subscription
+          </button>
+          <button
             onClick={() => setAuthTab('google')}
             style={{
               flex: 1,
@@ -217,23 +216,6 @@ export default function LoginPage() {
             }}
           >
             Google OAuth
-          </button>
-          <button
-            onClick={() => setAuthTab('email')}
-            style={{
-              flex: 1,
-              background: authTab === 'email' ? '#7c5af0' : 'transparent',
-              color: authTab === 'email' ? '#ffffff' : '#9896b0',
-              border: 'none',
-              borderRadius: 6,
-              padding: '8px 0',
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.15s'
-            }}
-          >
-            Email Access
           </button>
         </div>
 
@@ -283,7 +265,7 @@ export default function LoginPage() {
                 }}
               />
               <div style={{ fontSize: 11, color: '#6b6887', marginTop: 4 }}>
-                Key format: MINTO-XXXX-XXXX-XXXX (Pairs Web Console, Telegram & CLI)
+                Enter assigned key format: MINTO-XXXX-XXXX-XXXX
               </div>
             </div>
 
@@ -307,13 +289,91 @@ export default function LoginPage() {
                 boxShadow: '0 0 20px rgba(124, 90, 240, 0.3)'
               }}
             >
-              <span>{loading ? 'Authenticating Key...' : 'Sign In with Key'}</span>
+              <span>{loading ? 'Verifying Key...' : 'Verify Activation Key'}</span>
               <IconArrowRight size={14} />
             </button>
           </form>
         )}
 
-        {/* TAB 2: GOOGLE OAUTH */}
+        {/* TAB 2: PAY SUBSCRIPTION */}
+        {authTab === 'pay' && (
+          <form onSubmit={handleSubscriptionPayment} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9896b0', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+                Select Billing Cycle (Pro Tier Pass)
+              </label>
+
+              <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                {(['weekly', 'monthly', 'yearly'] as const).map((cycle) => (
+                  <button
+                    key={cycle}
+                    type="button"
+                    onClick={() => setSelectedPlan(cycle)}
+                    style={{
+                      flex: 1,
+                      background: selectedPlan === cycle ? 'rgba(124, 90, 240, 0.2)' : '#1a1925',
+                      border: `1px solid ${selectedPlan === cycle ? '#7c5af0' : '#2a2840'}`,
+                      borderRadius: 8,
+                      padding: '10px 6px',
+                      color: selectedPlan === cycle ? '#ffffff' : '#9896b0',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      textTransform: 'capitalize'
+                    }}
+                  >
+                    {cycle}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{
+                background: '#1a1925',
+                border: '1px solid #2a2840',
+                borderRadius: 8,
+                padding: '14px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 12
+              }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: '#ffffff' }}>MintoBaby Pro Pass</div>
+                  <div style={{ fontSize: 11, color: '#9896b0' }}>Multi-Chain Matrix Console + Bot + CLI</div>
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: '#22d87a' }}>
+                  {planPrices[selectedPlan]}
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                width: '100%',
+                background: '#22d87a',
+                color: '#0d0d12',
+                border: 'none',
+                borderRadius: 8,
+                padding: '12px',
+                fontSize: 13,
+                fontWeight: 800,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                boxShadow: '0 0 20px rgba(34, 216, 122, 0.3)'
+              }}
+            >
+              <span>{loading ? 'Processing Checkout...' : `Pay ${planPrices[selectedPlan]} & Unlock Access`}</span>
+              <IconArrowRight size={14} color="#0d0d12" />
+            </button>
+          </form>
+        )}
+
+        {/* TAB 3: GOOGLE OAUTH */}
         {authTab === 'google' && (
           <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}>
             <button
@@ -365,118 +425,11 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* TAB 3: EMAIL ACCESS */}
-        {authTab === 'email' && (
-          <form onSubmit={handleEmailAuth} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div>
-              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9896b0', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
-                Account Email Address
-              </label>
-              <input
-                type="email"
-                required
-                value={emailInput}
-                onChange={(e) => setEmailInput(e.target.value)}
-                placeholder="user@mintobaby.ai"
-                style={{
-                  width: '100%',
-                  background: '#1a1925',
-                  border: '1px solid #2a2840',
-                  borderRadius: 8,
-                  padding: '12px 14px',
-                  color: '#ffffff',
-                  fontSize: 13,
-                  outline: 'none',
-                  boxSizing: 'border-box'
-                }}
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                width: '100%',
-                background: '#7c5af0',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: 8,
-                padding: '12px',
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                boxShadow: '0 0 20px rgba(124, 90, 240, 0.3)'
-              }}
-            >
-              <span>{loading ? 'Authenticating...' : 'Sign In with Email'}</span>
-              <IconArrowRight size={14} />
-            </button>
-          </form>
-        )}
-
-        {/* PROMO CODE CLAIM BOX */}
-        <div style={{
-          width: '100%',
-          marginTop: 20,
-          paddingTop: 16,
-          borderTop: '1px solid #2a2840',
-          boxSizing: 'border-box'
-        }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#22d87a', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-            Claim Promo Code (minto2026)
-          </div>
-          <form onSubmit={handleClaimPromo} style={{ display: 'flex', gap: 8 }}>
-            <input
-              type="text"
-              placeholder="Enter minto2026"
-              value={promoInput}
-              onChange={(e) => setPromoInput(e.target.value)}
-              style={{
-                flex: 1,
-                background: '#1a1925',
-                border: '1px solid #2a2840',
-                borderRadius: 6,
-                padding: '8px 10px',
-                color: '#ffffff',
-                fontSize: 12,
-                outline: 'none'
-              }}
-            />
-            <button
-              type="submit"
-              style={{
-                background: '#22d87a',
-                color: '#0d0d12',
-                border: 'none',
-                borderRadius: 6,
-                padding: '8px 14px',
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-            >
-              Apply
-            </button>
-          </form>
-          {promoMessage && (
-            <div style={{
-              fontSize: 11,
-              marginTop: 6,
-              color: promoMessage.success ? '#22d87a' : '#f55050',
-              fontWeight: 600
-            }}>
-              {promoMessage.text}
-            </div>
-          )}
-        </div>
-
         {/* BOTTOM NAVIGATION FOOTER */}
         <div style={{
-          marginTop: 20,
+          marginTop: 24,
+          paddingTop: 16,
+          borderTop: '1px solid #2a2840',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',

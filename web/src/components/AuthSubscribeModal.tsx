@@ -492,52 +492,6 @@ export function AuthSubscribeModal({
                 Continue to Plan Selection →
               </button>
             </form>
-
-            {/* PROMO CODE CLAIM BOX */}
-            <div style={{ background: '#1c1b24', border: '1px solid rgba(107, 60, 232, 0.3)', borderRadius: 12, padding: '16px', marginTop: 10 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#00ff88', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>CLAIM PROMO CODE</span>
-                <span style={{ fontSize: 10, color: '#827e99', fontWeight: 600 }}>{MAX_PROMO_CLAIMS - getPromoClaimsCount()} / {MAX_PROMO_CLAIMS} Claims Left</span>
-              </div>
-              <form onSubmit={handleClaimPromoCode} style={{ display: 'flex', gap: 8 }}>
-                <input
-                  type="text"
-                  placeholder="Enter minto2026"
-                  value={promoInput}
-                  onChange={(e) => setPromoInput(e.target.value)}
-                  style={{
-                    flex: 1,
-                    background: '#14131a',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: 8,
-                    padding: '8px 12px',
-                    color: '#fff',
-                    fontSize: 13,
-                    outline: 'none'
-                  }}
-                />
-                <button
-                  type="submit"
-                  style={{
-                    background: '#00ff88',
-                    color: '#0a0a0f',
-                    border: 'none',
-                    borderRadius: 8,
-                    padding: '8px 16px',
-                    fontSize: 12,
-                    fontWeight: 700,
-                    cursor: 'pointer'
-                  }}
-                >
-                  Claim Starter Pass
-                </button>
-              </form>
-              {promoStatus && (
-                <div style={{ fontSize: 11, marginTop: 8, color: promoStatus.success ? '#00ff88' : '#ff4d73', fontWeight: 600 }}>
-                  {promoStatus.message}
-                </div>
-              )}
-            </div>
           </div>
         )}
 

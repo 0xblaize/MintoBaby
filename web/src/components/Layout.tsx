@@ -70,6 +70,17 @@ export function Layout() {
   const shortCode = activationCode.slice(0, 14) + '…';
 
   useEffect(() => {
+    const isAuthorized =
+      localStorage.getItem('mintobaby_user_logged_in') === 'true' ||
+      Boolean(localStorage.getItem('mintobaby_subscription')) ||
+      Boolean(localStorage.getItem('mintobaby_session'));
+
+    if (!isAuthorized) {
+      navigate('/login', { replace: true });
+    }
+  }, [navigate]);
+
+  useEffect(() => {
     api.health().then(() => setApiOk(true)).catch(() => setApiOk(false));
     const id = setInterval(() => {
       api.health().then(() => setApiOk(true)).catch(() => setApiOk(false));
