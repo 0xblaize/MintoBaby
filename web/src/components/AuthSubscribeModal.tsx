@@ -258,7 +258,7 @@ export function AuthSubscribeModal({
       setStep('success');
       setTimeout(() => {
         onClose();
-        navigate('/dashboard');
+        navigate('/setup');
       }, 1500);
     }, 1200);
   };
@@ -284,7 +284,7 @@ export function AuthSubscribeModal({
       setStep('success');
       setTimeout(() => {
         onClose();
-        navigate('/dashboard');
+        navigate('/setup');
       }, 1400);
     }, 1200);
   };

@@ -17,31 +17,57 @@ import {
   IconUser,
   IconKey,
   IconZap,
+  IconChevronRight,
+  IconBell,
   IconShieldCheck
 } from './Icons';
 
+// ─── DESIGN TOKENS ───────────────────────────────────────────────────────────
+const C = {
+  bg:        '#0d0d12',
+  surface:   '#13121a',
+  surface2:  '#1a1925',
+  border:    '#2a2840',
+  border2:   '#1f1e2e',
+  muted:     '#6b6887',
+  subtle:    '#3d3b52',
+  text:      '#e8e6f0',
+  textDim:   '#9896b0',
+  purple:    '#7c5af0',
+  purpleGlow:'rgba(124,90,240,0.18)',
+  green:     '#22d87a',
+  greenGlow: 'rgba(34,216,122,0.14)',
+  cyan:      '#22c7e8',
+  cyanGlow:  'rgba(34,199,232,0.14)',
+  violet:    '#b36ef5',
+  gold:      '#f0b429',
+  red:       '#f55050',
+};
+
 const MAIN_NAV = [
-  { path: '/dashboard', label: 'Dashboard', icon: <IconDashboard size={18} /> },
-  { path: '/setup', label: 'Setup & Hub Access', icon: <IconZap size={18} /> },
-  { path: '/scan', label: 'Contract Scanner', icon: <IconSearch size={18} /> },
-  { path: '/mint', label: 'Direct Mint', icon: <IconBolt size={18} /> },
-  { path: '/schedule', label: 'Drop Scheduler', icon: <IconClock size={18} /> },
-  { path: '/schedules', label: 'Active Schedules', icon: <IconList size={18} /> },
-  { path: '/copymint', label: 'Copy-Mint Radar', icon: <IconRadar size={18} /> },
-  { path: '/wallet', label: 'Multi-Key Wallet', icon: <IconWallet size={18} /> },
+  { path: '/dashboard',  label: 'Overview',         icon: <IconDashboard size={16} /> },
+  { path: '/scan',       label: 'Contract Scanner', icon: <IconSearch size={16} /> },
+  { path: '/mint',       label: 'Direct Mint',      icon: <IconBolt size={16} /> },
+  { path: '/schedule',   label: 'Drop Scheduler',   icon: <IconClock size={16} /> },
+  { path: '/schedules',  label: 'Schedules',        icon: <IconList size={16} /> },
+  { path: '/copymint',   label: 'Copy-Mint Radar',  icon: <IconRadar size={16} /> },
+  { path: '/wallet',     label: 'Wallet Vault',     icon: <IconWallet size={16} /> },
 ];
 
-const INTEGRATION_NAV = [
-  { path: '/telegram-guide', label: 'Telegram Bot Setup', icon: <IconTelegram size={18} /> },
-  { path: '/terminal-guide', label: 'Terminal CLI Setup', icon: <IconTerminal size={18} /> },
-  { path: '/profile', label: 'My Profile & Key', icon: <IconUser size={18} /> },
+const TOOLS_NAV = [
+  { path: '/setup',          label: 'Setup Hub',      icon: <IconZap size={16} />,      accent: C.green  },
+  { path: '/telegram-guide', label: 'Telegram Bot',   icon: <IconTelegram size={16} />, accent: C.cyan   },
+  { path: '/terminal-guide', label: 'Terminal CLI',   icon: <IconTerminal size={16} />, accent: C.violet },
+  { path: '/profile',        label: 'Profile & Key',  icon: <IconUser size={16} />,     accent: C.purple },
 ];
 
 export function Layout() {
   const navigate = useNavigate();
   const [apiOk, setApiOk] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
   const activationCode = getUserActivationCode();
+  const shortCode = activationCode.slice(0, 14) + '…';
 
   useEffect(() => {
     api.health().then(() => setApiOk(true)).catch(() => setApiOk(false));
@@ -51,273 +77,254 @@ export function Layout() {
     return () => clearInterval(id);
   }, []);
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim().startsWith('0x')) {
       navigate('/scan', { state: { contract: searchQuery.trim() } });
-    } else {
-      navigate('/dashboard');
     }
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#0a0a0f', color: '#e0e0ff', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      {/* ── HIGH-END STUDIO TOP NAVBAR ── */}
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      minHeight: '100vh',
+      background: C.bg,
+      color: C.text,
+      fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
+      fontSize: 14,
+    }}>
+
+      {/* ══════════════════════════════════════════
+          TOP NAV BAR
+      ══════════════════════════════════════════ */}
       <header style={{
-        height: 64,
-        background: '#121118',
-        borderBottom: '1px solid rgba(250, 8%, 20%, 0.6)',
+        height: 56,
+        background: C.surface,
+        borderBottom: `1px solid ${C.border}`,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0 24px',
+        padding: '0 20px',
         position: 'sticky',
         top: 0,
-        zIndex: 100,
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4)'
+        zIndex: 200,
+        flexShrink: 0,
       }}>
-        {/* Left: Official MintoLogo SVG & Title */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-          <div
-            onClick={() => navigate('/dashboard')}
-            style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
-          >
-            <MintoLogo size={32} />
-            <div>
-              <div style={{ fontSize: 17, fontWeight: 900, color: '#ffffff', letterSpacing: '0.04em', lineHeight: 1.1 }}>
-                MINTOBABY
-              </div>
-              <div style={{ fontSize: 9, color: '#6b3ce8', fontWeight: 800, letterSpacing: '0.12em', marginTop: 1 }}>
-                MATRIX ENGINE v2.0
-              </div>
-            </div>
-          </div>
 
-          {/* Top Search Command Input */}
-          <form onSubmit={handleSearchSubmit} style={{ display: 'flex', alignItems: 'center', marginLeft: 16 }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              background: '#1c1b24',
-              border: '1px solid rgba(250, 8%, 20%, 0.8)',
-              borderRadius: 8,
-              padding: '6px 14px',
-              width: 260
-            }}>
-              <IconSearch size={14} color="#827e99" />
-              <input
-                type="text"
-                placeholder="Search contract 0x... or vector"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  outline: 'none',
-                  color: '#ffffff',
-                  fontSize: 12,
-                  width: '100%'
-                }}
-              />
-            </div>
-          </form>
-
-          {/* Network Pills */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 8 }}>
-            <span style={{ background: 'rgba(0, 255, 136, 0.1)', border: '1px solid rgba(0, 255, 136, 0.3)', color: '#00ff88', padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
-              Robinhood 4663
-            </span>
-            <span style={{ background: 'rgba(0, 204, 255, 0.1)', border: '1px solid rgba(0, 204, 255, 0.3)', color: '#00ccff', padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
-              Ink L2 57073
-            </span>
-            <span style={{ background: 'rgba(153, 69, 255, 0.1)', border: '1px solid rgba(153, 69, 255, 0.3)', color: '#b877ff', padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
-              Solana SVM
-            </span>
-          </div>
-        </div>
-
-        {/* Right: API Health & Profile Activation Pill */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {/* API Status Pill */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            background: '#1c1b24',
-            border: '1px solid rgba(250, 8%, 20%, 0.6)',
-            padding: '6px 14px',
-            borderRadius: 20,
-            fontSize: 12,
-            fontWeight: 600
-          }}>
-            <div style={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              background: apiOk ? '#00ff88' : '#ff4444',
-              boxShadow: apiOk ? '0 0 10px #00ff88' : 'none'
-            }} />
-            <span style={{ color: apiOk ? '#00ff88' : '#ff4444' }}>
-              {apiOk ? 'API Connected' : 'API Standby'}
-            </span>
-          </div>
-
-          {/* Quick Setup Hub Button */}
+        {/* LEFT: Logo + Search */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+          {/* Brand */}
           <button
-            onClick={() => navigate('/setup')}
+            onClick={() => navigate('/dashboard')}
             style={{
-              background: '#6b3ce8',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: 8,
-              padding: '8px 16px',
-              fontSize: 12,
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              boxShadow: '0 0 16px rgba(107, 60, 232, 0.4)'
+              display: 'flex', alignItems: 'center', gap: 10,
+              background: 'none', border: 'none', cursor: 'pointer',
+              padding: '0 16px 0 0',
+              marginRight: 4,
+              borderRight: `1px solid ${C.border}`,
             }}
           >
-            <IconZap size={14} />
-            <span>Setup Hub</span>
+            <MintoLogo size={28} />
+            <span style={{ fontSize: 15, fontWeight: 700, color: C.text, letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>
+              MintoBaby
+            </span>
           </button>
 
-          {/* User Profile Key Pill */}
-          <div
+          {/* Search bar */}
+          <form onSubmit={handleSearch} style={{ marginLeft: 16 }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              background: searchFocused ? C.surface2 : C.bg,
+              border: `1px solid ${searchFocused ? C.purple : C.border}`,
+              borderRadius: 8,
+              padding: '7px 12px',
+              width: 240,
+              transition: 'all 0.15s ease',
+              boxShadow: searchFocused ? `0 0 0 3px ${C.purpleGlow}` : 'none',
+            }}>
+              <IconSearch size={13} color={C.muted} />
+              <input
+                type="text"
+                placeholder="Search 0x contract..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
+                style={{
+                  background: 'transparent', border: 'none', outline: 'none',
+                  color: C.text, fontSize: 13, width: '100%', lineHeight: 1,
+                }}
+              />
+              <kbd style={{
+                background: C.surface2, border: `1px solid ${C.border}`,
+                borderRadius: 4, padding: '1px 5px', fontSize: 10,
+                color: C.muted, fontFamily: 'inherit', whiteSpace: 'nowrap',
+              }}>⌘K</kbd>
+            </div>
+          </form>
+        </div>
+
+        {/* CENTER: Network status pills */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {[
+            { label: 'Robinhood · 4663', dot: C.green },
+            { label: 'Ink L2 · 57073',  dot: C.cyan  },
+            { label: 'Solana SVM',       dot: C.violet },
+          ].map(n => (
+            <div key={n.label} style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              background: C.surface2, border: `1px solid ${C.border}`,
+              borderRadius: 6, padding: '4px 10px', fontSize: 11, color: C.textDim, fontWeight: 500,
+            }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: n.dot, display: 'inline-block', flexShrink: 0 }} />
+              {n.label}
+            </div>
+          ))}
+        </div>
+
+        {/* RIGHT: API status + profile */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+
+          {/* API health badge */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            background: apiOk ? C.greenGlow : 'rgba(245,80,80,0.1)',
+            border: `1px solid ${apiOk ? 'rgba(34,216,122,0.3)' : 'rgba(245,80,80,0.3)'}`,
+            borderRadius: 6, padding: '5px 10px', fontSize: 11, fontWeight: 600,
+            color: apiOk ? C.green : C.red,
+          }}>
+            <span style={{
+              width: 6, height: 6, borderRadius: '50%',
+              background: apiOk ? C.green : C.red,
+              boxShadow: apiOk ? `0 0 8px ${C.green}` : 'none',
+              display: 'inline-block', flexShrink: 0,
+            }} />
+            {apiOk ? 'Live' : 'Offline'}
+          </div>
+
+          {/* Notifications placeholder */}
+          <button style={{
+            background: 'none', border: `1px solid ${C.border}`,
+            borderRadius: 6, padding: '5px 8px', cursor: 'pointer',
+            color: C.muted, display: 'flex', alignItems: 'center',
+          }}>
+            <IconBell size={15} />
+          </button>
+
+          {/* Profile chip */}
+          <button
             onClick={() => navigate('/profile')}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              background: '#1c1b24',
-              border: '1px solid rgba(107, 60, 232, 0.4)',
-              padding: '6px 14px',
-              borderRadius: 8,
-              cursor: 'pointer',
-              transition: 'all 0.15s'
+              display: 'flex', alignItems: 'center', gap: 8,
+              background: C.surface2, border: `1px solid ${C.border}`,
+              borderRadius: 8, padding: '5px 10px', cursor: 'pointer',
+              transition: 'border-color 0.15s',
             }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = C.purple; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; }}
           >
-            <IconKey size={14} color="#00ff88" />
-            <div>
-              <div style={{ fontSize: 9, color: '#827e99', fontWeight: 700 }}>ACTIVATION KEY</div>
-              <div style={{ fontSize: 11, fontFamily: 'monospace', color: '#00ff88', fontWeight: 800 }}>
-                {activationCode.slice(0, 10)}...
-              </div>
+            <div style={{
+              width: 22, height: 22, borderRadius: '50%',
+              background: `linear-gradient(135deg, ${C.purple}, ${C.violet})`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <IconUser size={12} color="#fff" />
             </div>
-            <IconUser size={16} color="#827e99" />
-          </div>
+            <div style={{ textAlign: 'left' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: C.text, lineHeight: 1.2 }}>My Account</div>
+              <div style={{ fontSize: 10, color: C.muted, fontFamily: 'monospace', lineHeight: 1 }}>{shortCode}</div>
+            </div>
+          </button>
         </div>
       </header>
 
-      {/* ── MAIN CONTAINER: SIDEBAR + CONTENT AREA ── */}
-      <div style={{ display: 'flex', flex: 1 }}>
-        {/* SIDE NAVIGATION BAR */}
-        <aside style={{
-          width: 230,
-          background: '#121118',
-          borderRight: '1px solid rgba(250, 8%, 20%, 0.6)',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          padding: '24px 0'
-        }}>
-          <div>
-            {/* Logo Header inside Sidebar */}
-            <div style={{ padding: '0 20px 20px', borderBottom: '1px solid rgba(250, 8%, 20%, 0.6)', marginBottom: 20 }}>
-              <div style={{ fontSize: 11, fontWeight: 800, color: '#6b3ce8', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-                NAV CONSOLE
-              </div>
-            </div>
+      {/* ══════════════════════════════════════════
+          BODY: SIDEBAR + CONTENT
+      ══════════════════════════════════════════ */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
-            {/* OPERATIONS Section */}
-            <div style={{ fontSize: 10, fontWeight: 800, color: '#827e99', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '0 20px 10px' }}>
+        {/* ─── SIDEBAR ─────────────────────────── */}
+        <aside style={{
+          width: 220,
+          background: C.surface,
+          borderRight: `1px solid ${C.border}`,
+          display: 'flex', flexDirection: 'column',
+          flexShrink: 0, overflowY: 'auto',
+        }}>
+
+          {/* Main nav */}
+          <nav style={{ padding: '16px 8px 0', flex: 1 }}>
+            <div style={{ padding: '0 8px 8px', fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
               Operations
             </div>
+            {MAIN_NAV.map(({ path, label, icon }) => (
+              <NavLink
+                key={path}
+                to={path}
+                end={path === '/dashboard'}
+                style={({ isActive }) => ({
+                  display: 'flex', alignItems: 'center', gap: 9,
+                  padding: '8px 10px', borderRadius: 7, marginBottom: 1,
+                  color: isActive ? C.text : C.textDim,
+                  background: isActive ? C.surface2 : 'transparent',
+                  textDecoration: 'none', fontSize: 13, fontWeight: isActive ? 600 : 400,
+                  transition: 'all 0.1s',
+                  borderLeft: isActive ? `2px solid ${C.purple}` : '2px solid transparent',
+                })}
+              >
+                {icon}
+                <span>{label}</span>
+              </NavLink>
+            ))}
 
-            <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '0 10px', marginBottom: 24 }}>
-              {MAIN_NAV.map(({ path, label, icon }) => (
-                <NavLink
-                  key={path}
-                  to={path}
-                  end={path === '/dashboard'}
-                  style={({ isActive }) => ({
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    padding: '10px 14px',
-                    borderRadius: 8,
-                    color: isActive ? '#ffffff' : '#827e99',
-                    background: isActive ? '#1c1b24' : 'transparent',
-                    borderLeft: isActive ? '3px solid #6b3ce8' : '3px solid transparent',
-                    textDecoration: 'none',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    transition: 'all 0.15s'
-                  })}
-                >
-                  {icon}
-                  <span>{label}</span>
-                </NavLink>
-              ))}
-            </nav>
-
-            {/* INTEGRATIONS & GUIDES Section */}
-            <div style={{ fontSize: 10, fontWeight: 800, color: '#827e99', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '0 20px 10px' }}>
-              Integrations & Setup
+            <div style={{ padding: '16px 8px 8px', fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 8 }}>
+              Tools & Setup
             </div>
+            {TOOLS_NAV.map(({ path, label, icon, accent }) => (
+              <NavLink
+                key={path}
+                to={path}
+                style={({ isActive }) => ({
+                  display: 'flex', alignItems: 'center', gap: 9,
+                  padding: '8px 10px', borderRadius: 7, marginBottom: 1,
+                  color: isActive ? C.text : C.textDim,
+                  background: isActive ? C.surface2 : 'transparent',
+                  textDecoration: 'none', fontSize: 13, fontWeight: isActive ? 600 : 400,
+                  transition: 'all 0.1s',
+                  borderLeft: isActive ? `2px solid ${accent}` : '2px solid transparent',
+                })}
+              >
+                {icon}
+                <span>{label}</span>
+              </NavLink>
+            ))}
+          </nav>
 
-            <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '0 10px' }}>
-              {INTEGRATION_NAV.map(({ path, label, icon }) => (
-                <NavLink
-                  key={path}
-                  to={path}
-                  style={({ isActive }) => ({
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    padding: '10px 14px',
-                    borderRadius: 8,
-                    color: isActive ? '#ffffff' : '#827e99',
-                    background: isActive ? '#1c1b24' : 'transparent',
-                    borderLeft: isActive ? '3px solid #00ccff' : '3px solid transparent',
-                    textDecoration: 'none',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    transition: 'all 0.15s'
-                  })}
-                >
-                  {icon}
-                  <span>{label}</span>
-                </NavLink>
-              ))}
-            </nav>
-          </div>
-
-          {/* Bottom Footer Item: Return Home */}
-          <div style={{ padding: '16px 20px 0', borderTop: '1px solid rgba(250, 8%, 20%, 0.6)' }}>
+          {/* Bottom: back to site */}
+          <div style={{ padding: '12px 8px 16px', borderTop: `1px solid ${C.border}` }}>
             <NavLink
               to="/"
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                color: '#827e99',
-                textDecoration: 'none',
-                fontSize: 13,
-                fontWeight: 600
+                display: 'flex', alignItems: 'center', gap: 9,
+                padding: '8px 10px', borderRadius: 7,
+                color: C.muted, textDecoration: 'none', fontSize: 13,
+                transition: 'color 0.1s',
               }}
             >
-              <IconGlobe size={18} />
-              <span>MintoBaby Studio</span>
+              <IconGlobe size={16} />
+              <span>Back to site</span>
             </NavLink>
           </div>
         </aside>
 
-        {/* MAIN ROUTE CONTENT */}
-        <main style={{ flex: 1, padding: 36, overflowX: 'hidden', background: '#0a0a0f' }}>
+        {/* ─── MAIN CONTENT ─────────────────────── */}
+        <main style={{
+          flex: 1, overflowY: 'auto', overflowX: 'hidden',
+          padding: '32px 36px',
+          background: C.bg,
+        }}>
           <Outlet />
         </main>
       </div>
