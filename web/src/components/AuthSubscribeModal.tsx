@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useGoogleLogin } from '@react-oauth/google';
+import { useAuth } from '../context/AuthContext';
 import { IconX, IconCheck, IconBolt, IconLock, IconCreditCard } from './MintoIcons';
 
 interface AuthSubscribeModalProps {
@@ -16,13 +18,12 @@ export function AuthSubscribeModal({
   initialBillingCycle = 'weekly'
 }: AuthSubscribeModalProps) {
   const navigate = useNavigate();
+  const { signInWithGoogle } = useAuth();
+  const [googleError, setGoogleError] = useState('');
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [step, setStep] = useState<'auth' | 'admin_pass' | 'payment' | 'success'>('auth');
   const [plan, setPlan] = useState<string>(selectedPlanTier);
   const [billingCycle, setBillingCycle] = useState<'weekly' | 'monthly' | 'yearly'>(initialBillingCycle);
-
-  // Modal State
-  const [showGooglePicker, setShowGooglePicker] = useState(false);
-  const [googleEmailInput, setGoogleEmailInput] = useState('');
 
   // Auth & Admin State
   const [email, setEmail] = useState('');
@@ -42,6 +43,43 @@ export function AuthSubscribeModal({
   const [cvv, setCvv] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'crypto'>('card');
   const [processing, setProcessing] = useState(false);
+
+  // Real Google OAuth login — exchanges code for ID token via backend
+  const googleLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      setGoogleLoading(true);
+      setGoogleError('');
+      try {
+        // Exchange access token for user info from Google
+        const infoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
+        });
+        if (!infoRes.ok) throw new Error('Failed to fetch Google user info');
+        const info = await infoRes.json();
+        // Send to our backend — backend verifies and creates/updates user record
+        const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+        const authRes = await fetch(`${BASE}/auth/google`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: tokenResponse.access_token, userinfo: info }),
+        });
+        if (!authRes.ok) throw new Error('Backend authentication failed');
+        const authData = await authRes.json();
+        const u = authData.user;
+        localStorage.setItem('mintobaby_session', JSON.stringify(u));
+        localStorage.setItem('mintobaby_user_activation_code', u.activation_code);
+        setUserLogged({ name: u.name, email: u.email, avatar: u.picture, provider: 'google' });
+        setStep('payment');
+      } catch (err: any) {
+        setGoogleError(err.message ?? 'Google sign-in failed. Please try again.');
+      } finally {
+        setGoogleLoading(false);
+      }
+    },
+    onError: (err) => {
+      setGoogleError('Google sign-in was cancelled or failed. Please try again.');
+    },
+  });
 
   useEffect(() => {
     setPlan(selectedPlanTier);
