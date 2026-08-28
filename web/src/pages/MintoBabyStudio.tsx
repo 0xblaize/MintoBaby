@@ -139,7 +139,7 @@ export default function MintoBabyStudio() {
   const openAuthWithPlan = (planId: string, cycle: 'weekly' | 'monthly' | 'yearly' = pricingCycle) => {
     setSelectedAuthPlan(planId);
     setPricingCycle(cycle);
-    setIsAuthModalOpen(true);
+    navigate('/login');
   };
 
   return (
