@@ -26,7 +26,7 @@ import {
 } from '../components/MintoIcons';
 import { StartProjectModal } from '../components/StartProjectModal';
 import { CaseStudyModal, ProjectData } from '../components/CaseStudyModal';
-import { AuthSubscribeModal } from '../components/AuthSubscribeModal';
+
 import { WatercolorCurrentCanvas } from '../components/WatercolorCurrentCanvas';
 
 /* ── SIMPLE GEOMETRIC GOOGLE-STYLE LOGO MARK ── */
@@ -116,7 +116,7 @@ const BOT_VECTORS_DATA: ProjectData[] = [
 export default function MintoBabyStudio() {
   const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
   const [selectedAuthPlan, setSelectedAuthPlan] = useState('pro');
   const [pricingCycle, setPricingCycle] = useState<'weekly' | 'monthly' | 'yearly'>('weekly');
   const [selectedProject, setSelectedProject] = useState<ProjectData | null>(null);
@@ -1705,7 +1705,7 @@ export default function MintoBabyStudio() {
       {/* Interactive Modals (Rendered Outside Liquid Wrapper for 100% Fixed Center Stability) */}
       <StartProjectModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
       <CaseStudyModal project={selectedProject} onClose={() => setSelectedProject(null)} />
-      <AuthSubscribeModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} selectedPlanTier={selectedAuthPlan} initialBillingCycle={pricingCycle} />
+
 
       {/* Global Inline Styles */}
       <style>{`
