@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getUserActivationCode } from '../utils/activation';
 import { api } from '../api';
 import {
   MintoLogo,
@@ -14,13 +13,17 @@ export default function SubscribePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   
-  const defaultCode = getUserActivationCode();
+  const defaultCode = localStorage.getItem('mintobaby_user_activation_code') || '';
+
+  const activationCode = defaultCode;
   const [activeTab, setActiveTab] = useState<'plans' | 'key'>('plans');
   const [billingCycle, setBillingCycle] = useState<'weekly' | 'monthly' | 'yearly'>('weekly');
   const [selectedPlanId, setSelectedPlanId] = useState<string>('pro');
   const [activationInput, setActivationInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'crypto'>('stripe');
+  const [transactionHash, setTransactionHash] = useState('');
 
   // Gating check: User must be signed in to see this page. If paid, redirect to setup
   useEffect(() => {
@@ -30,9 +33,14 @@ export default function SubscribePage() {
       return;
     }
 
-    const isPaid = localStorage.getItem('mintobaby_user_logged_in') === 'true' || Boolean(localStorage.getItem('mintobaby_subscription'));
-    if (isPaid) {
-      navigate('/setup', { replace: true });
+    const storedSubscription = localStorage.getItem('mintobaby_subscription');
+    if (storedSubscription) {
+      try {
+        const subscription = JSON.parse(storedSubscription);
+        if (subscription.active === true) navigate('/setup', { replace: true });
+      } catch {
+        localStorage.removeItem('mintobaby_subscription');
+      }
     }
   }, [user, navigate]);
 
@@ -97,27 +105,48 @@ export default function SubscribePage() {
     return `$${p.priceYearly} / year`;
   };
 
-  // Handle Subscription Payment
-  const handlePaymentCheckout = (e: React.FormEvent) => {
+  const handlePaymentCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMsg('');
 
-    const subscription = {
-      plan: currentPlan.id,
-      planName: currentPlan.name,
-      billingCycle,
-      purchasedAt: new Date().toISOString(),
-      active: true
-    };
-
-    localStorage.setItem('mintobaby_subscription', JSON.stringify(subscription));
-    localStorage.setItem('mintobaby_user_logged_in', 'true');
-
-    setTimeout(() => {
+    try {
+      const checkout = await api.createSubscriptionCheckout({
+        plan: currentPlan.id,
+        billingCycle,
+        paymentMethod,
+        activationCode,
+      });
+      if (paymentMethod === 'stripe') {
+        if (!checkout.checkoutUrl) throw new Error('Stripe checkout is unavailable right now.');
+        window.location.assign(checkout.checkoutUrl);
+        return;
+      }
+      setErrorMsg(checkout.instructions || 'Send the requested amount, then enter your transaction hash below.');
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Unable to start checkout. Please try again.');
+    } finally {
       setLoading(false);
-      navigate('/setup');
-    }, 600);
+    }
   };
+
+  const handleCryptoVerification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!transactionHash.trim()) return;
+    setLoading(true);
+    setErrorMsg('');
+    try {
+      const result = await api.verifyCryptoPayment(transactionHash.trim(), currentPlan.id, billingCycle, activationCode);
+      if (!result.active) throw new Error('Payment has not been confirmed yet.');
+      localStorage.setItem('mintobaby_subscription', JSON.stringify(result.subscription));
+      navigate('/setup');
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Unable to verify payment. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   // Handle Activation Key Verification
   const handleKeyVerification = async (e: React.FormEvent) => {
@@ -130,19 +159,12 @@ export default function SubscribePage() {
       const res = await api.verifyKey(codeToUse);
       if (res.valid) {
         localStorage.setItem('mintobaby_user_activation_code', codeToUse);
-        localStorage.setItem('mintobaby_user_logged_in', 'true');
         navigate('/setup');
       } else {
         setErrorMsg('Invalid activation code. Format must be MINTO-XXXX-XXXX-XXXX.');
       }
     } catch (err: any) {
-      if (codeToUse.startsWith('MINTO-')) {
-        localStorage.setItem('mintobaby_user_activation_code', codeToUse);
-        localStorage.setItem('mintobaby_user_logged_in', 'true');
-        navigate('/setup');
-      } else {
-        setErrorMsg(err.message || 'Verification failed. Please check your activation key.');
-      }
+      setErrorMsg(err.message || 'Verification failed. Please check your activation key.');
     } finally {
       setLoading(false);
     }
@@ -352,32 +374,61 @@ export default function SubscribePage() {
               })}
             </div>
 
-            {/* Pay Button */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              {(['stripe', 'crypto'] as const).map((method) => (
+                <button
+                  key={method}
+                  type="button"
+                  onClick={() => { setPaymentMethod(method); setErrorMsg(''); }}
+                  style={{
+                    flex: 1,
+                    background: paymentMethod === method ? '#7c5af0' : '#1a1925',
+                    border: `1px solid ${paymentMethod === method ? '#7c5af0' : '#2a2840'}`,
+                    borderRadius: 8,
+                    padding: '10px',
+                    color: '#fff',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    textTransform: 'capitalize'
+                  }}
+                >
+                  {method === 'stripe' ? 'Card · Stripe' : 'Crypto · Robinhood'}
+                </button>
+              ))}
+            </div>
+
+            {errorMsg && (
+              <div style={{ background: 'rgba(245,80,80,0.12)', border: '1px solid rgba(245,80,80,0.3)', color: '#f55050', fontSize: 12, padding: '10px 14px', borderRadius: 8, textAlign: 'center', marginBottom: 12 }}>
+                {errorMsg}
+              </div>
+            )}
+
             <form onSubmit={handlePaymentCheckout}>
               <button
                 type="submit"
                 disabled={loading}
-                style={{
-                  width: '100%',
-                  background: '#22d87a',
-                  color: '#0d0d12',
-                  border: 'none',
-                  borderRadius: 10,
-                  padding: '14px',
-                  fontSize: 14,
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  boxShadow: '0 0 20px rgba(34, 216, 122, 0.4)'
-                }}
+                style={{ width: '100%', background: '#22d87a', color: '#0d0d12', border: 'none', borderRadius: 10, padding: '14px', fontSize: 14, fontWeight: 800, cursor: loading ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 0 20px rgba(34, 216, 122, 0.4)' }}
               >
-                <span>{loading ? 'Processing Checkout...' : `Pay ${getPlanPrice(currentPlan)} (${currentPlan.name}) & Unlock Console`}</span>
+                <span>{loading ? 'Starting Checkout...' : paymentMethod === 'stripe' ? `Pay ${getPlanPrice(currentPlan)} with Stripe` : 'Get Crypto Payment Instructions'}</span>
                 <IconArrowRight size={16} color="#0d0d12" />
               </button>
             </form>
+
+            {paymentMethod === 'crypto' && (
+              <form onSubmit={handleCryptoVerification} style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+                <input
+                  type="text"
+                  value={transactionHash}
+                  onChange={(e) => setTransactionHash(e.target.value)}
+                  placeholder="Paste transaction hash after payment"
+                  style={{ flex: 1, minWidth: 0, background: '#1a1925', border: '1px solid #2a2840', borderRadius: 8, padding: '12px', color: '#fff', fontSize: 12, outline: 'none' }}
+                />
+                <button type="submit" disabled={loading || !transactionHash.trim()} style={{ background: '#7c5af0', color: '#fff', border: 'none', borderRadius: 8, padding: '0 14px', fontWeight: 700, cursor: 'pointer' }}>
+                  Verify
+                </button>
+              </form>
+            )}
           </div>
         )}
 

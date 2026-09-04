@@ -1,115 +1,58 @@
 /**
  * LoginPage.tsx
  * 
- * The exact login card from the "Google Login & Buy Sub" button — STEP 1 ONLY.
- * Centered on a pure static dark background (#0d0d12).
- * Zero water/fluid animations. Zero scrolling. One page.
- * After auth → redirect to /subscribe for payment/activation key gating.
+ * Single provider login surface for the website.
+ * Authentication is verified by the backend before subscription access is shown.
+ * Centered on a static dark background with no page effects or scrolling.
  */
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
-import { IconBolt, IconLock, IconCheck } from '../components/MintoIcons';
+import { IconBolt, IconLock } from '../components/MintoIcons';
 
 export default function LoginPage() {
   const navigate = useNavigate();
 
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleError, setGoogleError] = useState('');
-  const [email, setEmail] = useState('');
 
-  // Real Google OAuth
   const googleLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       setGoogleLoading(true);
       setGoogleError('');
       try {
-        const infoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-          headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
-        });
-        if (!infoRes.ok) throw new Error('Failed to fetch Google user info');
-        const info = await infoRes.json();
-
         const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
         const authRes = await fetch(`${BASE}/auth/google`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: tokenResponse.access_token, userinfo: info }),
+          body: JSON.stringify({ token: tokenResponse.access_token }),
         });
-
-        if (!authRes.ok) throw new Error('Backend authentication failed');
-        const authData = await authRes.json();
-        const u = authData.user;
-
-        localStorage.setItem('mintobaby_session', JSON.stringify(u));
-        localStorage.setItem('mintobaby_user', JSON.stringify({
-          name: u.name,
-          email: u.email,
-          avatar: u.picture,
-          provider: 'google',
-        }));
-        if (u.activation_code) {
-          localStorage.setItem('mintobaby_user_activation_code', u.activation_code);
+        if (!authRes.ok) {
+          const body = await authRes.json().catch(() => ({}));
+          throw new Error(body.detail ?? 'Google sign-in failed. Please try again.');
         }
-
+        const authData = await authRes.json();
+        const user = authData.user;
+        localStorage.setItem('mintobaby_session', JSON.stringify(user));
+        localStorage.setItem('mintobaby_user_activation_code', user.activation_code);
         navigate('/subscribe');
-      } catch (err: any) {
-        // Fallback: still allow navigation if backend is down
-        setGoogleError(err.message ?? 'Google sign-in failed. Please try again.');
+      } catch (err: unknown) {
+        setGoogleError(err instanceof Error ? err.message : 'Google sign-in failed. Please try again.');
       } finally {
         setGoogleLoading(false);
       }
     },
-    onError: () => {
-      setGoogleError('Google sign-in was cancelled or failed. Please try again.');
-    },
+    onError: () => setGoogleError('Google sign-in was cancelled or failed. Please try again.'),
   });
 
-  const handleEmailContinue = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) return;
-
-    const clean = email.trim().toLowerCase();
-
-    // Admin shortcut
-    if (clean === 'mintoadmin@gmail.com' || clean === 'dummy@gmail.com') {
-      const adminUser = {
-        name: 'Minto Admin',
-        email: clean,
-        avatar: '',
-        provider: 'admin',
-        isAdmin: true,
-        token: 'admin_master_token_' + Date.now(),
-        authenticatedAt: new Date().toISOString()
-      };
-      const adminSub = {
-        plan: 'enterprise',
-        planName: 'Enterprise Master Tier (Admin)',
-        billingCycle: 'yearly',
-        price: 0,
-        paymentMethod: 'ADMIN_BYPASS',
-        purchasedAt: new Date().toISOString(),
-        active: true
-      };
-      localStorage.setItem('mintobaby_user', JSON.stringify(adminUser));
-      localStorage.setItem('mintobaby_subscription', JSON.stringify(adminSub));
-      navigate('/dashboard');
-      return;
+  const handleGoogleClick = () => {
+    try {
+      googleLogin();
+    } catch {
+      setGoogleError('Google sign-in is not configured. Please try again later.');
     }
-
-    const nameStr = clean.split('@')[0];
-    const capitalized = nameStr.charAt(0).toUpperCase() + nameStr.slice(1);
-    const userSession = {
-      name: capitalized,
-      email: clean,
-      avatar: '',
-      provider: 'email',
-      token: 'em_auth_' + Math.random().toString(36).substring(2, 12),
-      authenticatedAt: new Date().toISOString()
-    };
-    localStorage.setItem('mintobaby_user', JSON.stringify(userSession));
-    navigate('/subscribe');
   };
+
 
   return (
     /* ── OUTER SHELL: Pure static dark full-viewport canvas ── */
@@ -156,7 +99,7 @@ export default function LoginPage() {
               flexShrink: 0,
             }}>1</span>
             <span style={{ fontSize: 12, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap' }}>
-              1. Google Login
+              1. Secure Google Login
             </span>
           </div>
 
@@ -197,7 +140,7 @@ export default function LoginPage() {
             Sign In to MINTOBABY
           </h2>
           <p style={{ color: '#827e99', fontSize: 14, fontWeight: 300, margin: 0, lineHeight: 1.55 }}>
-            Sign in with Google or enter your credentials to access the MintoBaby Matrix Engine.
+            Sign in with Google to continue to secure subscription checkout.
           </p>
 
           {/* Policy badge */}
@@ -209,7 +152,7 @@ export default function LoginPage() {
             marginTop: 14, fontSize: 11, color: '#ff6b8b', fontWeight: 600,
           }}>
             <IconLock size={13} color="#ff6b8b" />
-            <span>Strict Policy: Paid Subscription Tiers Only (No Free Mode)</span>
+            <span>Secure checkout required for console access</span>
           </div>
         </div>
 
@@ -228,9 +171,7 @@ export default function LoginPage() {
 
         {/* ── CONTINUE WITH GOOGLE BUTTON ── */}
         <button
-          onClick={() => {
-            try { googleLogin(); } catch { /* env without OAuth provider */ }
-          }}
+          onClick={handleGoogleClick}
           disabled={googleLoading}
           style={{
             width: '100%',
@@ -256,63 +197,6 @@ export default function LoginPage() {
           </svg>
           <span>{googleLoading ? 'Connecting Google...' : 'Continue with Google'}</span>
         </button>
-
-        {/* ── OR DIVIDER ── */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 12,
-          color: '#827e99', fontSize: 12, marginBottom: 20,
-        }}>
-          <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }} />
-          <span>OR ENTER EMAIL</span>
-          <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }} />
-        </div>
-
-        {/* ── EMAIL FORM ── */}
-        <form onSubmit={handleEmailContinue}>
-          <div style={{ marginBottom: 16 }}>
-            <label style={{
-              display: 'block', fontSize: 11, fontWeight: 600,
-              textTransform: 'uppercase', letterSpacing: '0.12em',
-              color: '#827e99', marginBottom: 7,
-            }}>
-              Email Address
-            </label>
-            <input
-              type="email"
-              required
-              placeholder="trader@mintobaby.ai or dummy@gmail.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={{
-                width: '100%',
-                background: '#1c1b24',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 8,
-                padding: '13px 14px',
-                color: '#fff', fontSize: 14,
-                outline: 'none',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-
-          <button
-            type="submit"
-            style={{
-              width: '100%',
-              background: '#6b3ce8',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 10,
-              padding: '15px',
-              fontSize: 15, fontWeight: 700,
-              cursor: 'pointer',
-              boxShadow: '0 0 24px rgba(107, 60, 232, 0.4)',
-            }}
-          >
-            Continue to Plan Selection →
-          </button>
-        </form>
 
         {/* ── BACK LINK ── */}
         <div style={{ marginTop: 22, textAlign: 'center' }}>

@@ -70,10 +70,8 @@ export function Layout() {
   const shortCode = activationCode.slice(0, 14) + '…';
 
   useEffect(() => {
-    const hasSession = Boolean(localStorage.getItem('mintobaby_session')) || localStorage.getItem('mintobaby_user_logged_in') === 'true';
-    const hasPaidOrActivated =
-      localStorage.getItem('mintobaby_user_logged_in') === 'true' ||
-      Boolean(localStorage.getItem('mintobaby_subscription'));
+    const hasSession = Boolean(localStorage.getItem('mintobaby_session'));
+    const hasPaidOrActivated = Boolean(localStorage.getItem('mintobaby_subscription')) || Boolean(localStorage.getItem('mintobaby_user_activation_code'));
 
     if (!hasSession) {
       navigate('/login', { replace: true });
