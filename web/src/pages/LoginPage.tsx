@@ -117,10 +117,14 @@ export default function LoginPage() {
       style={{
         position: 'fixed',
         inset: 0,
+        zIndex: 9999,
+        isolation: 'isolate',
         background: '#0d0d12',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        padding: 24,
+        boxSizing: 'border-box',
         fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
         overflow: 'hidden',
       }}
@@ -128,8 +132,9 @@ export default function LoginPage() {
       {/* ── CENTERED LOGIN CARD ── */}
       <div
         style={{
-          width: '100%',
-          maxWidth: 560,
+          width: 'min(560px, 100%)',
+          maxHeight: 'calc(100vh - 48px)',
+          overflow: 'hidden',
           background: '#14131a',
           border: '1px solid rgba(107, 60, 232, 0.4)',
           borderRadius: 20,

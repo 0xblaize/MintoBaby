@@ -146,8 +146,6 @@ export default function MintoBabyStudio() {
     <div style={{ background: '#0a0a0f', color: '#f5f5f5', minHeight: '100vh', position: 'relative', perspective: '1200px', overflowX: 'hidden' }}>
       <WatercolorCurrentCanvas />
       
-      <div id="liquid-website-wrapper" style={{ transformStyle: 'preserve-3d', willChange: 'transform' }}>
-      
       {/* ── 1. NAVBAR (WIDER & SLEEK WITH SIMPLE GEOMETRIC LOGO) ── */}
       <header
         style={{
@@ -301,6 +299,8 @@ export default function MintoBabyStudio() {
           </div>
         )}
       </header>
+
+      <div id="liquid-website-wrapper" style={{ transformStyle: 'preserve-3d', willChange: 'transform' }}>
 
       {/* ── 2. HERO SECTION ── */}
       <section
