@@ -1,5 +1,5 @@
 import { TelegramClient, type TelegramUpdate } from './telegram/client.js';
-import { CommandHandler, getMainInterfaceButtons, getTopCommandButtons } from './telegram/commands.js';
+import { CommandHandler, getTopCommandButtons } from './telegram/commands.js';
 import { MemoryStore } from './chain/memory-store.js';
 import { D1WalletStore, type D1DatabaseLike } from './chain/d1-wallet-store.js';
 import { ChainExecutor } from './chain/executor.js';
@@ -21,7 +21,6 @@ export interface Env {
   ROBINHOOD_RPC_URL?: string;
   ROBINHOOD_CHAIN_ID?: string;
   BOT_PRIVATE_KEY?: string;
-  MINI_APP_BASE_URL?: string;
   ENCRYPTION_SECRET?: string;
   AUTO_MINT_EXECUTOR_ADDRESS?: string;
   AUTO_MINT_OPERATOR_PRIVATE_KEY?: string;
@@ -38,12 +37,11 @@ export interface Env {
   GITHUB_SNIPER_REPO?: string;
 }
 
-function getWorkerConfig(env: Env, host: string): Config {
+function getWorkerConfig(env: Env): Config {
   const rpcUrl = env.ROBINHOOD_RPC_URL || 'https://rpc.mainnet.chain.robinhood.com';
   const chainId = env.ROBINHOOD_CHAIN_ID ? parseInt(env.ROBINHOOD_CHAIN_ID, 10) : 4663;
   const adminUserIds = (env.TELEGRAM_ADMIN_USER_IDS || '').split(',').map((s) => s.trim()).filter(Boolean);
   const telegramUserIds = (env.TELEGRAM_ALLOWLIST_USER_IDS || '').split(',').map((s) => s.trim()).filter(Boolean);
-  const miniAppBaseUrl = env.MINI_APP_BASE_URL || `https://${host}`;
 
   let botAddress: `0x${string}` = '0x0123456789abcdef0123456789abcdef01234567';
   if (env.BOT_PRIVATE_KEY && /^0x[a-fA-F0-9]{64}$/i.test(env.BOT_PRIVATE_KEY)) {
@@ -74,8 +72,6 @@ function getWorkerConfig(env: Env, host: string): Config {
     chains: [{ name: 'Robinhood Chain', chainId: 4663, rpcUrls: [rpcUrl], explorerBaseUrl: 'https://robinhoodchain.blockscout.com' }],
     explorerBaseUrl: 'https://robinhoodchain.blockscout.com',
     webhookPort: 8787,
-    miniAppBaseUrl,
-    miniAppApiUrl: `https://${host}`,
     paymentRecipient: /^0x[a-fA-F0-9]{40}$/.test(env.PAYMENT_RECIPIENT || '') ? env.PAYMENT_RECIPIENT as `0x${string}` : undefined,
     wethAddress: /^0x[a-fA-F0-9]{40}$/.test(env.WETH_ADDRESS || '') ? env.WETH_ADDRESS as `0x${string}` : undefined,
     paymentUsdAmount: env.PAYMENT_USD_AMOUNT ? Number(env.PAYMENT_USD_AMOUNT) : 20,
@@ -230,7 +226,7 @@ export default {
       return new Response(null, { headers: corsHeaders(), status: 204 });
     }
 
-    const config = getWorkerConfig(env, url.host);
+    const config = getWorkerConfig(env);
     const telegram = new TelegramClient(env.TELEGRAM_BOT_TOKEN);
     const allowlist = env.TELEGRAM_ALLOWLIST_USER_IDS ? config.telegramUserIds : [];
     const store = env.DB ? new D1WalletStore(env.DB) : new MemoryStore();
@@ -261,74 +257,7 @@ export default {
       return new Response(`✅ Telegram Webhook registered to: ${webhookUrl}\n✅ Bot commands menu registered!`, { status: 200 });
     }
 
-    // 2. Mini App Setup Notification API
-    if (request.method === 'POST' && url.pathname === '/api/transaction/verify') {
-      try {
-        const data = await request.json() as { userId?: string; txHash?: string };
-        const match = data.txHash?.match(/(?:0x|0X)?[a-fA-F0-9]{64}/)?.[0];
-        if (!data.userId || !match) {
-          return new Response(JSON.stringify({ error: 'Missing userId or valid txHash' }), { headers: { ...corsHeaders(), 'Content-Type': 'application/json' }, status: 400 });
-        }
-        const hash = (`0x${match.replace(/^0x/i, '').toLowerCase()}`) as `0x${string}`;
-        const client = createChainClient(config);
-        if (await client.getChainId() !== 4663) {
-          return new Response(JSON.stringify({ status: 'wrong_network', hash }), { headers: { ...corsHeaders(), 'Content-Type': 'application/json' }, status: 400 });
-        }
-        const transaction = await client.getTransaction({ hash });
-        if (!transaction) {
-          return new Response(JSON.stringify({ status: 'not_found', hash }), { headers: { ...corsHeaders(), 'Content-Type': 'application/json' }, status: 200 });
-        }
-        const receipt = await client.getTransactionReceipt({ hash });
-        if (!receipt) {
-          return new Response(JSON.stringify({ status: 'pending', hash }), { headers: { ...corsHeaders(), 'Content-Type': 'application/json' }, status: 200 });
-        }
-        if (receipt.status !== 'success') {
-          return new Response(JSON.stringify({ status: 'reverted', hash }), { headers: { ...corsHeaders(), 'Content-Type': 'application/json' }, status: 200 });
-        }
-        if (store instanceof D1WalletStore) await store.saveWalletAsync(data.userId, receipt.from); else store.saveWallet(data.userId, receipt.from);
-        await telegram.sendMessage(data.userId, `✅ <b>Transaction Verified</b>\n\n• <b>Hash:</b> <code>${hash}</code>\n• <b>Sender:</b> <code>${receipt.from}</code>\n• <b>Network:</b> Robinhood Chain (4663)\n\nThe public sender address was recorded.`, getMainInterfaceButtons(config.miniAppBaseUrl, data.userId, config.miniAppApiUrl));
-        return new Response(JSON.stringify({ status: 'success', hash, sender: receipt.from, blockNumber: receipt.blockNumber.toString() }), { headers: { ...corsHeaders(), 'Content-Type': 'application/json' }, status: 200 });
-      } catch (err) {
-        return new Response(JSON.stringify({ status: 'rpc_error', error: err instanceof Error ? err.message : String(err) }), { headers: { ...corsHeaders(), 'Content-Type': 'application/json' }, status: 502 });
-      }
-    }
-
-    if (request.method === 'POST' && url.pathname === '/api/wallet/authorized') {
-      try {
-        const data = await request.json() as {
-          userId?: string;
-          walletAddress?: string;
-          balanceEth?: string;
-          provider?: string;
-        };
-        if (!data.userId || !data.walletAddress || !/^0x[a-fA-F0-9]{40}$/.test(data.walletAddress)) {
-          return new Response(JSON.stringify({ error: 'Missing or invalid userId or walletAddress' }), {
-            headers: { ...corsHeaders(), 'Content-Type': 'application/json' }, status: 400
-          });
-        }
-
-        const walletAddress = data.walletAddress.toLowerCase();
-        if (store instanceof D1WalletStore) await store.saveWalletAsync(data.userId, walletAddress, data.provider); else store.saveWallet(data.userId, walletAddress, data.provider);
-        await telegram.sendMessage(
-          data.userId,
-          `✅ <b>Public Wallet Authorization Recorded</b>\n\n` +
-          `• <b>Main Wallet:</b> <code>${walletAddress}</code>\n` +
-          `• <b>Balance:</b> <b>${data.balanceEth ? await formatEthUsd(data.balanceEth) : 'Unavailable'}</b>\n` +
-          `• <b>Network:</b> Robinhood Chain (4663)\n\n` +
-          `The wallet provider session may expire or be revoked. Reopen the main interface to re-authorize when needed.`,
-          getMainInterfaceButtons(config.miniAppBaseUrl, data.userId, config.miniAppApiUrl)
-        );
-        return new Response(JSON.stringify({ success: true, address: walletAddress, status: 'authorized' }), {
-          headers: { ...corsHeaders(), 'Content-Type': 'application/json' }, status: 200
-        });
-      } catch (err) {
-        return new Response(JSON.stringify({ error: err instanceof Error ? err.message : String(err) }), {
-          headers: { ...corsHeaders(), 'Content-Type': 'application/json' }, status: 400
-        });
-      }
-    }
-
-    // 3. Telegram Webhook Handler (Receives bot messages from Telegram)
+    // Telegram Webhook Handler (Receives bot messages from Telegram)
     if (request.method === 'POST' && (url.pathname === '/webhook' || url.pathname === '/')) {
       try {
         const update = await request.json() as TelegramUpdate;
@@ -361,7 +290,7 @@ export default {
    * Monitors armed drops block-by-block and automatically executes & pushes Telegram notifications.
    */
   async scheduled(event: { cron?: string }, env: Env, ctx: ExecutionContext): Promise<void> {
-    const config = getWorkerConfig(env, 'localhost');
+    const config = getWorkerConfig(env);
     const telegram = new TelegramClient(env.TELEGRAM_BOT_TOKEN);
     if (!env.DB) {
       console.error('[SNIPER] Scheduled auto-mint disabled: D1 binding is required for durable approval and claim state.');

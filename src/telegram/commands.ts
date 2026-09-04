@@ -103,9 +103,6 @@ export function getMainMenuButtons(isAdmin: boolean = false): TelegramButton[][]
 }
 
 export const getTopCommandButtons = getMainMenuButtons;
-export function getMainInterfaceButtons(_baseUrl?: string, _userId?: string, _apiUrl?: string, isAdmin: boolean = false): TelegramButton[][] {
-  return getMainMenuButtons(isAdmin);
-}
 
 export class CommandHandler {
   private readonly users = new Map<string, UserState>();

@@ -21,8 +21,6 @@ const envSchema = z.object({
   EVM_CHAINS_JSON: z.string().optional().default('[{"name":"Robinhood Chain","chainId":4663,"rpcUrls":["https://rpc.mainnet.chain.robinhood.com"],"explorerBaseUrl":"https://robinhoodchain.blockscout.com"}]'),
   TELEGRAM_EXPLORER_BASE_URL: z.string().url().default('https://robinhoodchain.blockscout.com'),
   WEBHOOK_PORT: z.coerce.number().int().min(1).max(65535).optional().default(8787),
-  MINI_APP_BASE_URL: z.string().url().optional().default('http://localhost:5173'),
-  MINI_APP_API_URL: z.string().url().optional(),
   PAYMENT_RECIPIENT: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
   WETH_ADDRESS: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
   PAYMENT_USD_AMOUNT: z.coerce.number().positive().default(20),
@@ -52,8 +50,6 @@ export type Config = {
   chains: readonly { name: string; chainId: number; rpcUrls: string[]; explorerBaseUrl: string }[];
   webhookPort: number;
   vaultAddress?: `0x${string}`;
-  miniAppBaseUrl: string;
-  miniAppApiUrl?: string;
   paymentRecipient?: `0x${string}`;
   wethAddress?: `0x${string}`;
   paymentUsdAmount: number;
@@ -117,8 +113,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     explorerBaseUrl: values.TELEGRAM_EXPLORER_BASE_URL.replace(/\/$/, ''),
     webhookPort: values.WEBHOOK_PORT,
     encryptionSecret: values.ENCRYPTION_SECRET,
-    miniAppBaseUrl: values.MINI_APP_BASE_URL.replace(/\/$/, ''),
-    miniAppApiUrl: values.MINI_APP_API_URL?.replace(/\/$/, ''),
     paymentRecipient: values.PAYMENT_RECIPIENT as `0x${string}` | undefined,
     wethAddress: values.WETH_ADDRESS as `0x${string}` | undefined,
     paymentUsdAmount: values.PAYMENT_USD_AMOUNT,
