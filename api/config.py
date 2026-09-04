@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     telegram_chat_id:   str | None = None
     stripe_secret_key: str | None = None
     stripe_webhook_secret: str | None = None
+    mintobaby_admin_email: str | None = None
+    mintobaby_admin_password: str | None = None
     payment_recipient: str | None = None
     weth_address: str | None = None
     payment_usd_amount: float = 20.0

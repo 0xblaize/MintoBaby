@@ -14,7 +14,54 @@ export default function LoginPage() {
   const navigate = useNavigate();
 
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [adminLoading, setAdminLoading] = useState(false);
   const [googleError, setGoogleError] = useState('');
+  const [adminError, setAdminError] = useState('');
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const googleConfigured = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
+
+  const persistSession = (user: Record<string, unknown>) => {
+    localStorage.setItem('mintobaby_session', JSON.stringify(user));
+    if (typeof user.activation_code === 'string' && user.activation_code) {
+      localStorage.setItem('mintobaby_user_activation_code', user.activation_code);
+    }
+  };
+
+  const handleAdminLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAdminLoading(true);
+    setAdminError('');
+    try {
+      const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+      const response = await fetch(`${BASE}/auth/admin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: adminEmail.trim(), password: adminPassword }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.detail ?? 'Administrator sign-in failed.');
+      persistSession(body.user);
+      localStorage.setItem('mintobaby_admin_session', 'true');
+      navigate('/dashboard');
+    } catch (err: unknown) {
+      setAdminError(err instanceof Error ? err.message : 'Administrator sign-in failed.');
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  const handleGoogleClick = () => {
+    if (!googleConfigured) {
+      setGoogleError('Google sign-in is not configured. Add VITE_GOOGLE_CLIENT_ID to web/.env.');
+      return;
+    }
+    try {
+      googleLogin();
+    } catch {
+      setGoogleError('Google sign-in could not start. Please try again later.');
+    }
+  };
 
   const googleLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
@@ -32,9 +79,7 @@ export default function LoginPage() {
           throw new Error(body.detail ?? 'Google sign-in failed. Please try again.');
         }
         const authData = await authRes.json();
-        const user = authData.user;
-        localStorage.setItem('mintobaby_session', JSON.stringify(user));
-        localStorage.setItem('mintobaby_user_activation_code', user.activation_code);
+        persistSession(authData.user);
         navigate('/subscribe');
       } catch (err: unknown) {
         setGoogleError(err instanceof Error ? err.message : 'Google sign-in failed. Please try again.');
@@ -44,15 +89,6 @@ export default function LoginPage() {
     },
     onError: () => setGoogleError('Google sign-in was cancelled or failed. Please try again.'),
   });
-
-  const handleGoogleClick = () => {
-    try {
-      googleLogin();
-    } catch {
-      setGoogleError('Google sign-in is not configured. Please try again later.');
-    }
-  };
-
 
   return (
     /* ── OUTER SHELL: Pure static dark full-viewport canvas ── */
@@ -197,6 +233,21 @@ export default function LoginPage() {
           </svg>
           <span>{googleLoading ? 'Connecting Google...' : 'Continue with Google'}</span>
         </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: '#827e99', fontSize: 12, margin: '22px 0 18px' }}>
+          <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }} />
+          <span>ADMINISTRATOR ACCESS</span>
+          <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }} />
+        </div>
+
+        <form onSubmit={handleAdminLogin}>
+          <input type="email" required value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} placeholder="Administrator email" style={{ width: '100%', boxSizing: 'border-box', background: '#1c1b24', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '12px 14px', color: '#fff', fontSize: 14, outline: 'none', marginBottom: 10 }} />
+          <input type="password" required value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} placeholder="Administrator password" style={{ width: '100%', boxSizing: 'border-box', background: '#1c1b24', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '12px 14px', color: '#fff', fontSize: 14, outline: 'none', marginBottom: 10 }} />
+          {adminError && <div style={{ color: '#ff4d73', fontSize: 12, marginBottom: 10, textAlign: 'center' }}>{adminError}</div>}
+          <button type="submit" disabled={adminLoading} style={{ width: '100%', background: '#1c1b24', color: '#fff', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, padding: '12px', fontSize: 13, fontWeight: 700, cursor: adminLoading ? 'wait' : 'pointer' }}>
+            {adminLoading ? 'Signing in...' : 'Sign in as Administrator'}
+          </button>
+        </form>
 
         {/* ── BACK LINK ── */}
         <div style={{ marginTop: 22, textAlign: 'center' }}>

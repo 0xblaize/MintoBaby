@@ -4,7 +4,7 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider } from './context/AuthContext';
 import App from './App';
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '1082937592734-dummyclientid.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';  // Configure in web/.env before enabling Google sign-in.
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

@@ -1,4 +1,5 @@
 import json
+import os
 import random
 import string
 from datetime import datetime, timezone
@@ -7,6 +8,8 @@ from pathlib import Path
 import httpx
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
+
+from ..config import settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -84,6 +87,11 @@ def _unique_activation_code(users: dict) -> str:
 
 class GoogleTokenRequest(BaseModel):
     token: str
+
+
+class AdminLoginRequest(BaseModel):
+    email: str
+    password: str
 
 
 class ActivationRequest(BaseModel):
@@ -180,6 +188,13 @@ async def google_login(req: GoogleTokenRequest):
             "sub": user["sub"],
         },
     }
+
+
+@router.post("/admin")
+async def admin_login(req: AdminLoginRequest):
+    if not settings.mintobaby_admin_email or not settings.mintobaby_admin_password or req.email.strip().lower() != settings.mintobaby_admin_email.lower() or req.password != settings.mintobaby_admin_password:
+        raise HTTPException(status_code=401, detail="Invalid administrator credentials.")
+    return {"success": True, "user": {"email": req.email.strip().lower(), "name": "Administrator", "picture": "", "activation_code": "", "sub": "admin", "isAdmin": True}}
 
 
 @router.get("/me")
