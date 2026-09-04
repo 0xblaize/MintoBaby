@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from ..config import settings
 from ..models import MintRequest, MintResult, ScheduleRequest, ScheduledMint
-from ..services.chain import ChainService
+from ..services.chain import ChainService, NETWORKS
 from ..services.discovery import DiscoveryService
 from ..services.executor import ExecutorService
 from ..services.scheduler import SchedulerService
@@ -33,8 +33,11 @@ async def _tg_notify(msg: str):
 
 @router.post("/execute", response_model=MintResult)
 async def execute_mint(req: MintRequest, request: Request):
-    executor, _ = _get_services(request)
-    chain = ChainService(settings.rpc_url, settings.chain_id)
+    net = NETWORKS[req.network]
+    if net["type"] == "solana":
+        return MintResult(network=req.network, success=False, error="Solana mint execution is not implemented yet; no transaction was signed or broadcast.")
+    chain = ChainService(net["rpc"], net["chain_id"], req.network)
+    executor = ExecutorService(chain)
     discovery = DiscoveryService(chain)
 
     async def on_broadcast(tx_hash: str, fn: str):
@@ -51,7 +54,7 @@ async def execute_mint(req: MintRequest, request: Request):
                 sea_drop_address=disc.sea_drop_address,
                 nft_contract=req.contract,
                 quantity=req.quantity,
-                value_eth=req.value_eth,
+                value_eth=req.value_native,
                 on_broadcast=on_broadcast,
             )
         else:
@@ -59,7 +62,7 @@ async def execute_mint(req: MintRequest, request: Request):
                 private_key=req.private_key,
                 contract=req.contract,
                 quantity=req.quantity,
-                value_eth=req.value_eth,
+                value_eth=req.value_native,
                 on_broadcast=on_broadcast,
             )
     except Exception:
@@ -67,10 +70,11 @@ async def execute_mint(req: MintRequest, request: Request):
             private_key=req.private_key,
             contract=req.contract,
             quantity=req.quantity,
-            value_eth=req.value_eth,
+            value_eth=req.value_native,
             on_broadcast=on_broadcast,
         )
 
+    result.network = req.network
     if result.success:
         await _tg_notify(
             f"🎉 <b>MINT CONFIRMED!</b>\n"

@@ -27,10 +27,11 @@ from rich import box
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from api.config import settings                         # noqa: E402
-from api.services.chain import ChainService             # noqa: E402
+from api.services.chain import ChainService, NETWORKS  # noqa: E402
 from api.services.crypto import (                       # noqa: E402
     encrypt_key, decrypt_key, generate_wallet, import_wallet
 )
+from api.services.solana_wallet import generate_solana_wallet, import_solana_wallet  # noqa: E402
 from api.services.discovery import DiscoveryService     # noqa: E402
 from api.services.executor import ExecutorService       # noqa: E402
 from api.services.scheduler import SchedulerService     # noqa: E402
@@ -40,7 +41,9 @@ from api.models import ScheduleRequest                  # noqa: E402
 # Constants
 # ---------------------------------------------------------------------------
 WALLET_FILE   = Path.home() / ".mintobaby" / "wallet.enc"
+SOLANA_WALLET_FILE = Path.home() / ".mintobaby" / "solana-wallet.enc"
 EXPLORER_BASE = "https://robinhoodchain.blockscout.com"
+SOLANA_EXPLORER = "https://solscan.io"
 
 ACCENT  = "bright_green"
 WARNING = "yellow"
@@ -447,6 +450,54 @@ def status():
 # ---------------------------------------------------------------------------
 # wallet sub-commands
 # ---------------------------------------------------------------------------
+@wallet_app.command("solana-generate")
+def wallet_solana_generate():
+    """Generate and save an encrypted Solana wallet for bot/terminal use."""
+    _banner()
+    w = generate_solana_wallet()
+    enc = encrypt_key(w["private_key"], settings.encryption_secret)
+    _save_wallet_data(SOLANA_WALLET_FILE, {"network": "solana", "address": w["address"], **enc})
+    console.print(Panel(f"Address: [{ACCENT}]{w['address']}[/{ACCENT}]\n\nSend SOL to this address. The private key is encrypted locally.", title="Solana Wallet", box=box.DOUBLE_EDGE, border_style=ACCENT))
+
+
+@wallet_app.command("solana-import")
+def wallet_solana_import():
+    """Import and save an encrypted Solana private key."""
+    _banner()
+    try:
+        w = import_solana_wallet(Prompt.ask("Enter Solana private key", password=True))
+        enc = encrypt_key(w["private_key"], settings.encryption_secret)
+        _save_wallet_data(SOLANA_WALLET_FILE, {"network": "solana", "address": w["address"], **enc})
+        console.print(f"[{ACCENT}]Solana wallet saved: {w['address']}[/{ACCENT}]")
+    except Exception as exc:
+        console.print(f"[{ERROR}]Invalid Solana key: {exc}[/{ERROR}]")
+
+
+@wallet_app.command("solana-show")
+def wallet_solana_show():
+    """Show Solana receive address and balance."""
+    _banner()
+    raw = _load_wallet_data(SOLANA_WALLET_FILE)
+    if not raw:
+        console.print(f"[{WARNING}]No Solana wallet found. Run: python -m api.cli wallet solana-generate[/{WARNING}]")
+        return
+    async def _run():
+        balance = await ChainService(NETWORKS["solana"]["rpc"], None, "solana").get_balance(raw["address"])
+        console.print(Panel(f"Address: [{ACCENT}]{raw['address']}[/{ACCENT}]\nBalance: [{ACCENT}]{balance} SOL[/{ACCENT}]\nExplorer: {SOLANA_EXPLORER}/address/{raw['address']}", title="Solana Wallet", box=box.ROUNDED))
+    asyncio.run(_run())
+
+
+def _load_wallet_data(path: Path) -> Optional[dict]:
+    if path.exists():
+        return json.loads(path.read_text())
+    return None
+
+
+def _save_wallet_data(path: Path, data: dict):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data))
+
+
 @wallet_app.command("show")
 def wallet_show():
     """Show current wallet address and balance."""

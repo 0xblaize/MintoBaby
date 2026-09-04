@@ -10,10 +10,10 @@ from ..models import ScheduleRequest, ScheduledMint
 class SchedulerService:
     def __init__(
         self,
-        executor: ExecutorService,
+        executor_factory: Callable[[str], ExecutorService],
         telegram_notify: Optional[Callable[[str], Awaitable[None]]] = None,
     ):
-        self.executor        = executor
+        self.executor_factory = executor_factory
         self.telegram_notify = telegram_notify
         self._schedules: dict[str, ScheduledMint] = {}
         self._tasks:     dict[str, asyncio.Task]   = {}
@@ -23,15 +23,24 @@ class SchedulerService:
         mint = ScheduledMint(
             id=sched_id,
             contract=req.contract,
+            network=req.network,
             quantity=req.quantity,
-            value_eth=req.value_eth,
+            value_native=req.value_native,
             mint_time_ms=req.mint_time_ms,
             status="armed",
         )
+        if req.network == "solana":
+            mint.status = "failed"
+            mint.error = "Solana scheduling is not implemented yet; no transaction will be signed."
+            self._schedules[sched_id] = mint
+            return mint
         self._schedules[sched_id] = mint
         task = asyncio.create_task(self._run(sched_id, req.private_key))
         self._tasks[sched_id] = task
         return mint
+
+    def _executor_for(self, sched_id: str) -> ExecutorService:
+        return self.executor_factory(self._schedules[sched_id].network)
 
     def list_schedules(self) -> list[ScheduledMint]:
         return list(self._schedules.values())
@@ -78,11 +87,11 @@ class SchedulerService:
                 f"Hash: {tx_hash}"
             )
 
-        result = await self.executor.execute_mint(
+        result = await self._executor_for(sched_id).execute_mint(
             private_key=private_key,
             contract=mint.contract,
             quantity=mint.quantity,
-            value_eth=mint.value_eth,
+            value_native=mint.value_native,
             on_broadcast=on_broadcast,
         )
 

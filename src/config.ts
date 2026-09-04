@@ -5,6 +5,11 @@ import { privateKeyToAccount } from 'viem/accounts';
 const envSchema = z.object({
   ROBINHOOD_RPC_URL: z.string().url().refine((value) => value.startsWith('https://'), 'RPC URL must use HTTPS').default('https://rpc.mainnet.chain.robinhood.com'),
   ROBINHOOD_CHAIN_ID: z.coerce.number().int().positive().default(4663),
+  SOLANA_RPC_URL: z.string().url().default('https://api.mainnet-beta.solana.com'),
+  SOLANA_EXPLORER_URL: z.string().url().default('https://solscan.io'),
+  INK_RPC_URL: z.string().url().default('https://rpc-gel.inkonchain.com'),
+  INK_CHAIN_ID: z.coerce.number().int().positive().default(57073),
+  INK_EXPLORER_URL: z.string().url().default('https://explorer.inkonchain.com'),
   CONTRACT_ADDRESS: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional().default('0x0000000000000000000000000000000000000000'),
   CONTRACT_ABI_JSON: z.string().optional().default('[]'),
   MONITORED_EVENT_NAME: z.string().optional().default('AutoMintExecuted'),
@@ -32,6 +37,11 @@ export type Config = {
   encryptionSecret: string;
   rpcUrl: string;
   chainId: number;
+  solanaRpcUrl: string;
+  solanaExplorerUrl: string;
+  inkRpcUrl: string;
+  inkChainId: number;
+  inkExplorerUrl: string;
   contractAddress: `0x${string}`;
   abi: readonly unknown[];
   eventName: string;
@@ -95,6 +105,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   return {
     rpcUrl: values.ROBINHOOD_RPC_URL,
     chainId: values.ROBINHOOD_CHAIN_ID,
+    solanaRpcUrl: values.SOLANA_RPC_URL,
+    solanaExplorerUrl: values.SOLANA_EXPLORER_URL,
+    inkRpcUrl: values.INK_RPC_URL,
+    inkChainId: values.INK_CHAIN_ID,
+    inkExplorerUrl: values.INK_EXPLORER_URL,
     contractAddress: values.CONTRACT_ADDRESS as `0x${string}`,
     abi,
     eventName: values.MONITORED_EVENT_NAME,

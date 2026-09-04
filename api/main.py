@@ -34,14 +34,19 @@ app.include_router(copymint.router)
 async def startup():
     chain              = ChainService(settings.robinhood_rpc_url, settings.robinhood_chain_id, "robinhood")
     app.state.executor  = ExecutorService(chain)
-    app.state.scheduler = SchedulerService(app.state.executor)
 
     def executor_factory(network):
+        net_cfg = NETWORKS.get(network, NETWORKS["robinhood"])
+        return ExecutorService(ChainService(net_cfg["rpc"], net_cfg["chain_id"], network))
+
+    app.state.scheduler = SchedulerService(executor_factory)
+
+    def copy_executor_factory(network):
         net_cfg = NETWORKS.get(network, NETWORKS["robinhood"])
         net_chain = ChainService(net_cfg["rpc"], net_cfg["chain_id"], network)
         return ExecutorService(net_chain)
 
-    app.state.copy_mint = CopyMintService(executor_factory)
+    app.state.copy_mint = CopyMintService(copy_executor_factory)
 
 
 @app.get("/", include_in_schema=False)
