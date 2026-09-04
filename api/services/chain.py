@@ -185,16 +185,48 @@ class ChainService:
             raise exc
 
     async def get_transaction_receipt(self, tx_hash: str) -> Optional[dict]:
-        if self.net_type == "solana":
-            return {"status": "0x1", "blockNumber": "0x1"}
         try:
             async with aiohttp.ClientSession() as session:
+                if self.net_type == "solana":
+                    payload = {"jsonrpc": "2.0", "id": 1, "method": "getSignatureStatuses", "params": [[tx_hash], {"searchTransactionHistory": True}]}
+                    async with session.post(self.rpc_url, json=payload, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                        body = await resp.json()
+                        status = (body.get("result", {}).get("value") or [None])[0]
+                        if not status:
+                            return None
+                        return {"status": "0x1" if status.get("err") is None else "0x0", "slot": status.get("slot"), "confirmations": status.get("confirmations"), "err": status.get("err")}
                 async with session.post(
                     self.rpc_url,
-                    json={"jsonrpc": "2.0", "id": 1, "method": "eth_getTransactionReceipt",
-                          "params": [tx_hash]},
+                    json={"jsonrpc": "2.0", "id": 1, "method": "eth_getTransactionReceipt", "params": [tx_hash]},
                     timeout=aiohttp.ClientTimeout(total=5),
                 ) as resp:
+                    body = await resp.json()
+                    return body.get("result")
+        except Exception:
+            return None
+
+    async def get_solana_latest_blockhash(self) -> Optional[str]:
+        if self.net_type != "solana":
+            return None
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(self.rpc_url, json={"jsonrpc": "2.0", "id": 1, "method": "getLatestBlockhash", "params": [{"commitment": "confirmed"}]}, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                    body = await resp.json()
+                    return body.get("result", {}).get("value", {}).get("blockhash")
+        except Exception:
+            return None
+
+    async def get_solana_signature_status(self, tx_hash: str) -> Optional[dict]:
+        if self.net_type != "solana":
+            return None
+        return await self.get_transaction_receipt(tx_hash)
+
+    async def get_solana_transaction(self, tx_hash: str) -> Optional[dict]:
+        if self.net_type != "solana":
+            return None
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(self.rpc_url, json={"jsonrpc": "2.0", "id": 1, "method": "getTransaction", "params": [tx_hash, {"encoding": "jsonParsed", "commitment": "confirmed", "maxSupportedTransactionVersion": 0}]}, timeout=aiohttp.ClientTimeout(total=8)) as resp:
                     body = await resp.json()
                     return body.get("result")
         except Exception:
