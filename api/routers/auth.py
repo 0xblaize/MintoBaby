@@ -89,6 +89,10 @@ class GoogleTokenRequest(BaseModel):
     token: str
 
 
+class EmailLoginRequest(BaseModel):
+    email: str
+
+
 class AdminLoginRequest(BaseModel):
     email: str
     password: str
@@ -188,6 +192,24 @@ async def google_login(req: GoogleTokenRequest):
             "sub": user["sub"],
         },
     }
+
+
+@router.post("/email")
+async def email_login(req: EmailLoginRequest):
+    email = req.email.strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Enter a valid email address.")
+    users = _load_users()
+    user_key = next((key for key, value in users.items() if value.get("email", "").lower() == email), None)
+    now_iso = datetime.now(timezone.utc).isoformat()
+    if user_key:
+        user = users[user_key]
+        user["last_login"] = now_iso
+    else:
+        user = {"sub": f"email:{email}", "email": email, "name": email.split("@", 1)[0], "picture": "", "activation_code": _unique_activation_code(users), "created_at": now_iso, "last_login": now_iso}
+        users[user["sub"]] = user
+    _save_users(users)
+    return {"success": True, "user": {"email": user["email"], "name": user["name"], "picture": user["picture"], "activation_code": user["activation_code"], "sub": user["sub"]}}
 
 
 @router.post("/admin")
