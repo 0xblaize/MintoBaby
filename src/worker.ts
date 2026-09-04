@@ -71,7 +71,6 @@ function getWorkerConfig(env: Env, host: string): Config {
     botAddress,
     botPrivateKey: env.BOT_PRIVATE_KEY as `0x${string}` | undefined,
     encryptionSecret: env.ENCRYPTION_SECRET || 'mintobot-super-secure-key-robinhood-2026',
-    turnkey: { enabled: false, apiBaseUrl: 'https://turnkey.com' },
     chains: [{ name: 'Robinhood Chain', chainId: 4663, rpcUrls: [rpcUrl], explorerBaseUrl: 'https://robinhoodchain.blockscout.com' }],
     explorerBaseUrl: 'https://robinhoodchain.blockscout.com',
     webhookPort: 8787,

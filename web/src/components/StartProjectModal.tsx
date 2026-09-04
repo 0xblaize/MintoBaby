@@ -22,7 +22,7 @@ export function StartProjectModal({ isOpen, onClose }: StartProjectModalProps) {
     'Web3 Brand Identity',
     'Smart Contract Dev',
     'UI/UX Product Design',
-    'Turnkey Vault Setup',
+    'Secure Wallet Vault Setup',
     'Digital Strategy',
   ];
 

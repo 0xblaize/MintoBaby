@@ -18,14 +18,9 @@ const envSchema = z.object({
   TELEGRAM_ALLOWLIST_USER_IDS: z.string().optional().default(''),
   TELEGRAM_ADMIN_USER_IDS: z.string().min(1),
   BOT_PRIVATE_KEY: z.string().regex(/^0x[a-fA-F0-9]{64}$/).optional(),
-  TURNKEY_API_BASE_URL: z.string().url().optional(),
-  TURNKEY_API_PUBLIC_KEY: z.string().min(1).optional(),
-  TURNKEY_API_PRIVATE_KEY: z.string().min(1).optional(),
-  TURNKEY_ORGANIZATION_ID: z.string().min(1).optional(),
   EVM_CHAINS_JSON: z.string().optional().default('[{"name":"Robinhood Chain","chainId":4663,"rpcUrls":["https://rpc.mainnet.chain.robinhood.com"],"explorerBaseUrl":"https://robinhoodchain.blockscout.com"}]'),
   TELEGRAM_EXPLORER_BASE_URL: z.string().url().default('https://robinhoodchain.blockscout.com'),
   WEBHOOK_PORT: z.coerce.number().int().min(1).max(65535).optional().default(8787),
-  TURNKEY_WEBHOOK_SECRET: z.string().min(32).optional(),
   MINI_APP_BASE_URL: z.string().url().optional().default('http://localhost:5173'),
   MINI_APP_API_URL: z.string().url().optional(),
   PAYMENT_RECIPIENT: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
@@ -54,16 +49,8 @@ export type Config = {
   adminUserIds: string[];
   botAddress: `0x${string}`;
   botPrivateKey?: `0x${string}`;
-  turnkey: {
-    enabled: boolean;
-    apiBaseUrl: string;
-    apiPublicKey?: string;
-    apiPrivateKey?: string;
-    organizationId?: string;
-  };
   chains: readonly { name: string; chainId: number; rpcUrls: string[]; explorerBaseUrl: string }[];
   webhookPort: number;
-  turnkeyWebhookSecret?: string;
   vaultAddress?: `0x${string}`;
   miniAppBaseUrl: string;
   miniAppApiUrl?: string;
@@ -101,8 +88,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     throw new Error(`Invalid EVM_CHAINS_JSON: ${error instanceof Error ? error.message : String(error)}`);
   }
 
-  const turnkeyEnabled = Boolean(values.TURNKEY_API_PUBLIC_KEY && values.TURNKEY_API_PRIVATE_KEY && values.TURNKEY_ORGANIZATION_ID);
-
   let botAddress: `0x${string}` = '0x0123456789abcdef0123456789abcdef01234567';
   if (values.BOT_PRIVATE_KEY) {
     try {
@@ -128,17 +113,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     adminUserIds,
     botAddress,
     botPrivateKey: values.BOT_PRIVATE_KEY as `0x${string}` | undefined,
-    turnkey: {
-      enabled: turnkeyEnabled,
-      apiBaseUrl: values.TURNKEY_API_BASE_URL ?? 'https://turnkey.com',
-      apiPublicKey: values.TURNKEY_API_PUBLIC_KEY,
-      apiPrivateKey: values.TURNKEY_API_PRIVATE_KEY,
-      organizationId: values.TURNKEY_ORGANIZATION_ID
-    },
     chains,
     explorerBaseUrl: values.TELEGRAM_EXPLORER_BASE_URL.replace(/\/$/, ''),
     webhookPort: values.WEBHOOK_PORT,
-    turnkeyWebhookSecret: values.TURNKEY_WEBHOOK_SECRET,
     encryptionSecret: values.ENCRYPTION_SECRET,
     miniAppBaseUrl: values.MINI_APP_BASE_URL.replace(/\/$/, ''),
     miniAppApiUrl: values.MINI_APP_API_URL?.replace(/\/$/, ''),

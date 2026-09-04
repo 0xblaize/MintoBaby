@@ -74,7 +74,7 @@ export default function SubscribePage() {
         'Unlimited Wallet Snipers',
         'All Chains (Robinhood, Solana, Ink L2)',
         '10ms Auto-Mint Matrix Executor',
-        'Priority Turnkey Wallet Vaults',
+        'Priority Secure Wallet Vaults',
         'VIP Copy Trading & CopyMint Engine',
         '24/7 Priority Support'
       ]
@@ -90,7 +90,7 @@ export default function SubscribePage() {
       features: [
         'Custom AutoMintExecutor Contracts',
         'Dedicated MintoBaby Engineering Team',
-        'Custom Turnkey Multi-sig Policies',
+        'Custom Secure Multi-sig Policies',
         'White-Label Client Dashboard',
         '1-on-1 Strategy & Architecture'
       ]

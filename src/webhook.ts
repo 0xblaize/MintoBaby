@@ -1,4 +1,3 @@
-import { createHash, timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { Config } from './config.js';
 import { CursorStore } from './chain/cursor-store.js';
@@ -11,15 +10,7 @@ const MAX_BODY_BYTES = 256 * 1024;
 function setCorsHeaders(res: ServerResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-turnkey-webhook-secret');
-}
-
-function authorized(request: IncomingMessage, secret: string): boolean {
-  const provided = request.headers['x-turnkey-webhook-secret'];
-  if (typeof provided !== 'string') return false;
-  const expected = createHash('sha256').update(secret).digest();
-  const actual = createHash('sha256').update(provided).digest();
-  return timingSafeEqual(expected, actual);
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
 async function readBody(request: IncomingMessage): Promise<string> {
@@ -154,27 +145,6 @@ export function startWebhookServer(config: Config, store: CursorStore, telegram?
         response.writeHead(400, { 'content-type': 'application/json' }).end(JSON.stringify({ error: err instanceof Error ? err.message : String(err) }));
         return;
       }
-    }
-
-    if (request.method === 'POST' && request.url === '/webhooks/turnkey') {
-      const webhookSecret = config.turnkeyWebhookSecret;
-      if (!webhookSecret || !authorized(request, webhookSecret)) {
-        response.writeHead(401).end('unauthorized');
-        return;
-      }
-      try {
-        const body = await readBody(request);
-        const event: unknown = JSON.parse(body);
-        if (!event || typeof event !== 'object') throw new Error('Invalid JSON event');
-        const record = event as Record<string, unknown>;
-        const eventId = typeof record.id === 'string' ? record.id : typeof record.activityId === 'string' ? record.activityId : undefined;
-        if (!eventId) throw new Error('Missing event identifier');
-        const accepted = store.insertWebhookEvent(eventId, body);
-        response.writeHead(accepted ? 202 : 200, { 'content-type': 'application/json' }).end(JSON.stringify({ accepted, eventId }));
-      } catch (error) {
-        response.writeHead(error instanceof Error && error.message === 'Payload too large' ? 413 : 400).end('invalid webhook');
-      }
-      return;
     }
 
     response.writeHead(404).end();
