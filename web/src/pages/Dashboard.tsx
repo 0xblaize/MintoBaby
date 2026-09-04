@@ -203,6 +203,9 @@ export default function Dashboard() {
               onMouseEnter={e => { e.currentTarget.style.color = C.green; e.currentTarget.style.borderColor = `rgba(34,216,122,0.4)`; }}
               onMouseLeave={e => { e.currentTarget.style.color = C.textDim; e.currentTarget.style.borderColor = C.border; }}
             >
+              <IconTerminal size={14} />
+              Terminal
+            </button>
             <button
               onClick={() => navigate('/setup')}
               style={{
