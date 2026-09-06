@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { api } from '../api';
+import { useWallet } from '../context/WalletContext';
 import type { MintResult, DiscoveryResult } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
 import { IconBolt, IconSearch, IconCheck, IconExternalLink } from '../components/Icons';
@@ -23,12 +24,13 @@ const btn = (color = '#00ff88', disabled = false): React.CSSProperties => ({
 
 export default function MintPage() {
   const loc = useLocation();
+  const nav = useNavigate();
+  const { address } = useWallet();
   const state = loc.state as { contract?: string; price?: string } | null;
 
   const [contract, setContract] = useState(state?.contract ?? '');
   const [qty, setQty] = useState('1');
   const [value, setValue] = useState(state?.price ?? '0');
-  const [pk, setPk] = useState('');
   const [scanning, setScanning] = useState(false);
   const [minting, setMinting] = useState(false);
   const [info, setInfo] = useState<DiscoveryResult | null>(null);
@@ -47,15 +49,12 @@ export default function MintPage() {
     } finally { setScanning(false); }
   }
 
-  async function doMint() {
-    if (!contract || !pk) { setError('Contract address and private key are required.'); return; }
-    setMinting(true); setResult(null); setError('');
-    try {
-      const r = await api.executeMint(contract.trim(), parseInt(qty), value, pk.trim());
-      setResult(r);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Mint failed');
-    } finally { setMinting(false); }
+  function doMint() {
+    if (!address) {
+      setError('Connect an external wallet before minting.');
+      return;
+    }
+    setError('Website mint signing is not connected to the current API yet. Use the Telegram bot or Terminal CLI for automated mint execution.');
   }
 
   return (
@@ -88,12 +87,11 @@ export default function MintPage() {
               <input style={inp} value={value} onChange={e => setValue(e.target.value)} placeholder="0.05" />
             </div>
           </div>
-          <div style={field()}>
-            <label style={label}>Private Key <span style={{ color: '#ff4444' }}>*</span></label>
-            <input style={inp} type="password" value={pk} onChange={e => setPk(e.target.value)} placeholder="0x... (never stored)" />
+          <div style={{ ...field(), color: '#9896b0', fontSize: 13, lineHeight: 1.6 }}>
+            {address ? <>Connected wallet: <code style={{ color: '#fff' }}>{address}</code><br />Transaction approval will happen in your external wallet.</> : 'Connect an external wallet to prepare a website transaction.'}
           </div>
           {error && <div style={{ color: '#ff4444', fontSize: 13, marginBottom: 12 }}>{error}</div>}
-          <button style={btn('#00ff88', minting || !contract || !pk)} onClick={doMint} disabled={minting || !contract || !pk}>
+          <button style={btn('#00ff88', minting || !contract || !address)} onClick={doMint} disabled={minting || !contract || !address}>
             <IconBolt size={16} />
             <span>{minting ? 'Minting in progress...' : 'Execute Instant Mint'}</span>
           </button>

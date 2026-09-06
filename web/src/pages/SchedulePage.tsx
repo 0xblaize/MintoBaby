@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../api';
+import { useWallet } from '../context/WalletContext';
 import type { DiscoveryResult, ScheduledMint } from '../types';
 import { IconClock, IconSearch, IconCheck, IconZap } from '../components/Icons';
 
@@ -37,12 +38,12 @@ function useCountdown(targetMs?: number) {
 export default function SchedulePage() {
   const loc = useLocation();
   const nav = useNavigate();
+  const { address } = useWallet();
   const state = loc.state as { contract?: string; price?: string; mintTimeMs?: number } | null;
 
   const [contract, setContract] = useState(state?.contract ?? '');
   const [qty, setQty] = useState('1');
   const [value, setValue] = useState(state?.price ?? '0');
-  const [pk, setPk] = useState('');
   const [mintTimeMs, setMintTimeMs] = useState<number | undefined>(state?.mintTimeMs);
   const [timeInput, setTimeInput] = useState('');
   const [scanning, setScanning] = useState(false);
@@ -76,18 +77,12 @@ export default function SchedulePage() {
     } catch { setError('Invalid time format.'); }
   }
 
-  async function doArm() {
-    if (!contract || !pk || !mintTimeMs) {
-      setError('Contract, private key, and mint time are required.');
+  function doArm() {
+    if (!address) {
+      setError('Connect an external wallet before scheduling.');
       return;
     }
-    setArming(true); setError('');
-    try {
-      const r = await api.scheduleMint(contract.trim(), parseInt(qty), value, pk.trim(), mintTimeMs);
-      setArmed(r);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Scheduling failed');
-    } finally { setArming(false); }
+    setError('Website scheduled signing is not connected to the current API yet. Use the Telegram bot or Terminal CLI for automated scheduled execution.');
   }
 
   return (
@@ -155,13 +150,12 @@ export default function SchedulePage() {
                 <input style={inp} value={value} onChange={e => setValue(e.target.value)} placeholder="0.05" />
               </div>
             </div>
-            <div style={field()}>
-              <label style={label}>Private Key <span style={{ color: '#ff4444' }}>*</span></label>
-              <input style={inp} type="password" value={pk} onChange={e => setPk(e.target.value)} placeholder="0x..." />
+            <div style={{ ...field(), color: '#9896b0', fontSize: 13, lineHeight: 1.6 }}>
+              {address ? <>Connected wallet: <code style={{ color: '#fff' }}>{address}</code><br />Scheduled transactions must be approved by an external wallet.</> : 'Connect an external wallet to prepare a website schedule.'}
             </div>
             {error && <div style={{ color: '#ff4444', fontSize: 13, marginBottom: 12 }}>{error}</div>}
-            <button style={btn('#00ff88', arming || !contract || !pk || !mintTimeMs)}
-              onClick={doArm} disabled={arming || !contract || !pk || !mintTimeMs}>
+            <button style={btn('#00ff88', arming || !contract || !address || !mintTimeMs)}
+              onClick={doArm} disabled={arming || !contract || !address || !mintTimeMs}>
               <IconZap size={16} />
               <span>{arming ? 'Arming Sniper...' : 'Arm Drop Sniper'}</span>
             </button>

@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../api';
+import { useWallet } from '../context/WalletContext';
 import type { CopyMintRule, NetworkType } from '../types';
-import { IconRadar, IconZap, IconCheck } from '../components/Icons';
+import { IconRadar } from '../components/Icons';
 
 const inp: React.CSSProperties = {
   background: '#12111a', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: 8,
@@ -22,7 +23,7 @@ export default function CopyMintPage() {
   const [network, setNetwork] = useState<NetworkType>('robinhood');
   const [maxQty, setMaxQty] = useState('1');
   const [maxPrice, setMaxPrice] = useState('0.5');
-  const [pk, setPk] = useState('');
+  const { address } = useWallet();
   const [rules, setRules] = useState<CopyMintRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -43,22 +44,16 @@ export default function CopyMintPage() {
     load();
   }, [load]);
 
-  async function handleAddRule() {
-    if (!targetWallet.trim() || !pk.trim()) {
-      setError('Target wallet address and your private key are required.');
+  function handleAddRule() {
+    if (!targetWallet.trim()) {
+      setError('Target wallet address is required.');
       return;
     }
-    setSubmitting(true); setError(''); setMsg('');
-    try {
-      await api.addCopyRule(targetWallet.trim(), pk.trim(), network, parseInt(maxQty), maxPrice);
-      setTargetWallet(''); setPk('');
-      setMsg('Alpha wallet copy-mint rule active!');
-      await load();
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to add rule');
-    } finally {
-      setSubmitting(false);
+    if (!address) {
+      setError('Connect an external wallet before configuring copy-mint execution.');
+      return;
     }
+    setError('Website copy-mint signing is not connected to the current API yet. Use the Telegram bot or Terminal CLI for automated copy-mint execution.');
   }
 
   async function handleRemoveRule(id: string) {
@@ -125,18 +120,10 @@ export default function CopyMintPage() {
             </div>
           </div>
 
-          <div style={field()}>
-            <label style={label}>Your Execution Key <span style={{ color: '#ff4444' }}>*</span></label>
-            <input
-              style={inp}
-              type="password"
-              value={pk}
-              onChange={e => setPk(e.target.value)}
-              placeholder="0x... or base58 private key"
-            />
+          <div style={{ ...field(), color: '#9896b0', fontSize: 13, lineHeight: 1.6 }}>
+            {address ? <>Connected wallet: <code style={{ color: '#fff' }}>{address}</code><br />MintoBaby never receives or stores your private key.</> : 'Connect an external wallet before configuring website execution.'}
           </div>
-
-          <button style={btn('#00ccff', submitting || !targetWallet || !pk)} onClick={handleAddRule} disabled={submitting || !targetWallet || !pk}>
+          <button style={btn('#00ccff', submitting || !targetWallet || !address)} onClick={handleAddRule} disabled={submitting || !targetWallet || !address}>
             <IconRadar size={16} />
             <span>{submitting ? 'Arming Copy Radar…' : 'Arm Copy Mirror'}</span>
           </button>
