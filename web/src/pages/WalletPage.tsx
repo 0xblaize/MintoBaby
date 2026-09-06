@@ -1,3 +1,4 @@
+  const projectId = __MINTOBABY_CONFIG__.walletConnectProjectId.trim();
 import { IconWallet, IconExternalLink } from '../components/Icons';
 import { useWallet } from '../context/WalletContext';
 

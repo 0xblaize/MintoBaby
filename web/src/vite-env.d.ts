@@ -1,9 +1,7 @@
-interface ImportMetaEnv {
-  readonly VITE_API_URL?: string;
-  readonly VITE_GOOGLE_CLIENT_ID?: string;
-  readonly VITE_WALLETCONNECT_PROJECT_ID?: string;
+interface MintoBabyPublicConfig {
+  readonly apiUrl: string;
+  readonly googleClientId: string;
+  readonly walletConnectProjectId: string;
 }
 
-interface ImportMeta {
-  readonly env: ImportMetaEnv;
-}
+declare const __MINTOBABY_CONFIG__: MintoBabyPublicConfig;

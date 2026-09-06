@@ -1,6 +1,6 @@
 import type { WalletInfo, DiscoveryResult, MintResult, ScheduledMint, CopyMintRule, HealthResponse, NetworkType } from './types';
 
-const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+const BASE = __MINTOBABY_CONFIG__.apiUrl;
 
 export interface SubscriptionCheckoutRequest {
   plan: string;

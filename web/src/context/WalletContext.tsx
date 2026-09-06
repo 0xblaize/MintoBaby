@@ -45,8 +45,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     setBusy(true);
     setError('');
     try {
-      const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID?.trim();
-      if (!projectId) throw new Error('WalletConnect is not configured. Add VITE_WALLETCONNECT_PROJECT_ID to the root .env.');
+      const projectId = __MINTOBABY_CONFIG__.walletConnectProjectId.trim();
+      if (!projectId) throw new Error('WalletConnect is not configured. Add WALLETCONNECT_PROJECT_ID to the root .env.');
       const walletProvider = await EthereumProvider.init({
         projectId,
         chains: [CHAIN_ID],

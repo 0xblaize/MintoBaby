@@ -4,7 +4,7 @@
  */
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
-const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+const BASE = __MINTOBABY_CONFIG__.apiUrl;
 const SESSION_KEY = 'mintobaby_session';
 
 export interface MBUser {

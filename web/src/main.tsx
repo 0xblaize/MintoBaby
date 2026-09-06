@@ -5,7 +5,7 @@ import { AuthProvider } from './context/AuthContext';
 import { WalletProvider } from './context/WalletContext';
 import App from './App';
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim() || '';
+const GOOGLE_CLIENT_ID = __MINTOBABY_CONFIG__.googleClientId.trim();
 
 function Application() {
   const content = (

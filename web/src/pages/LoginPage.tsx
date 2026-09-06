@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
 import { IconBolt, IconLock } from '../components/MintoIcons';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
-const GOOGLE_ENABLED = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim());
+const API_BASE = __MINTOBABY_CONFIG__.apiUrl;
+const GOOGLE_ENABLED = Boolean(__MINTOBABY_CONFIG__.googleClientId.trim());
 
 type GoogleBridgeProps = { onToken: (token: string) => Promise<void>; onError: (message: string) => void; loading: boolean };
 
