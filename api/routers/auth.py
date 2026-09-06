@@ -1,4 +1,7 @@
 import json
+import base64
+import hashlib
+import hmac
 import os
 import random
 import string
@@ -91,11 +94,34 @@ class GoogleTokenRequest(BaseModel):
 
 class EmailLoginRequest(BaseModel):
     email: str
+    password: str
 
 
 class AdminLoginRequest(BaseModel):
     email: str
     password: str
+
+
+def _hash_password(password: str) -> str:
+    """Store passwords as salted, slow PBKDF2-SHA256 hashes, never plaintext."""
+    salt = os.urandom(16)
+    iterations = 600_000
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, iterations)
+    return f"pbkdf2_sha256${iterations}${base64.b64encode(salt).decode()}${base64.b64encode(digest).decode()}"
+
+
+def _verify_password(password: str, encoded: str) -> bool:
+    try:
+        algorithm, iterations_text, salt_text, digest_text = encoded.split("$", 3)
+        if algorithm != "pbkdf2_sha256":
+            return False
+        iterations = int(iterations_text)
+        salt = base64.b64decode(salt_text)
+        expected = base64.b64decode(digest_text)
+        actual = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, iterations)
+        return hmac.compare_digest(actual, expected)
+    except (ValueError, TypeError):
+        return False
 
 
 class ActivationRequest(BaseModel):
@@ -199,14 +225,25 @@ async def email_login(req: EmailLoginRequest):
     email = req.email.strip().lower()
     if not email or "@" not in email:
         raise HTTPException(status_code=400, detail="Enter a valid email address.")
+    if len(req.password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters.")
+
+    # Admin credentials are environment-only and must never become a normal user.
+    if settings.mintobaby_admin_email and email == settings.mintobaby_admin_email.strip().lower():
+        if hmac.compare_digest(req.password, settings.mintobaby_admin_password or ""):
+            return {"success": True, "user": {"email": email, "name": "Administrator", "picture": "", "activation_code": "", "sub": "admin", "isAdmin": True}}
+        raise HTTPException(status_code=401, detail="Invalid administrator credentials.")
+
     users = _load_users()
     user_key = next((key for key, value in users.items() if value.get("email", "").lower() == email), None)
     now_iso = datetime.now(timezone.utc).isoformat()
     if user_key:
         user = users[user_key]
+        if not _verify_password(req.password, user.get("password_hash", "")):
+            raise HTTPException(status_code=401, detail="Invalid email or password.")
         user["last_login"] = now_iso
     else:
-        user = {"sub": f"email:{email}", "email": email, "name": email.split("@", 1)[0], "picture": "", "activation_code": _unique_activation_code(users), "created_at": now_iso, "last_login": now_iso}
+        user = {"sub": f"email:{email}", "email": email, "name": email.split("@", 1)[0], "picture": "", "activation_code": _unique_activation_code(users), "password_hash": _hash_password(req.password), "created_at": now_iso, "last_login": now_iso}
         users[user["sub"]] = user
     _save_users(users)
     return {"success": True, "user": {"email": user["email"], "name": user["name"], "picture": user["picture"], "activation_code": user["activation_code"], "sub": user["sub"]}}

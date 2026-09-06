@@ -21,6 +21,7 @@ export default function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleError, setGoogleError] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailError, setEmailError] = useState('');
 
@@ -50,11 +51,11 @@ export default function LoginPage() {
     setEmailLoading(true);
     setEmailError('');
     try {
-      const response = await fetch(`${API_BASE}/auth/email`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email.trim() }) });
+      const response = await fetch(`${API_BASE}/auth/email`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email.trim(), password }) });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.detail ?? 'Email sign-up failed.');
       saveSession(body.user);
-      navigate('/subscribe');
+      navigate(body.user.isAdmin ? '/dashboard' : '/subscribe');
     } catch (error: unknown) {
       setEmailError(error instanceof Error ? error.message : 'Email sign-up failed.');
     } finally {
@@ -70,7 +71,7 @@ export default function LoginPage() {
         {googleError && <div style={{ padding: 12, marginBottom: 16, borderRadius: 8, background: 'rgba(245,80,80,0.1)', color: '#ff4d73', fontSize: 13, textAlign: 'center' }}>{googleError}</div>}
         {GOOGLE_ENABLED ? <GoogleBridge onToken={handleGoogleToken} onError={setGoogleError} loading={googleLoading} /> : <button type="button" disabled style={{ width: '100%', padding: 14, border: 0, borderRadius: 10, background: '#777', color: '#ddd', fontWeight: 600 }}>Google sign-in is not configured</button>}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: '#827e99', fontSize: 11, margin: '24px 0 16px' }}><span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }} /> OR CONTINUE WITH EMAIL <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }} /></div>
-        <form onSubmit={handleEmailLogin}><input aria-label="Email address" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" style={{ width: '100%', boxSizing: 'border-box', marginBottom: 10, padding: '12px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: '#1c1b24', color: '#fff' }} />{emailError && <div style={{ color: '#ff4d73', fontSize: 12, marginBottom: 10, textAlign: 'center' }}>{emailError}</div>}<button type="submit" disabled={emailLoading} style={{ width: '100%', padding: 12, borderRadius: 10, border: '1px solid rgba(255,255,255,0.15)', background: '#1c1b24', color: '#fff', fontWeight: 700 }}>{emailLoading ? 'Continuing...' : 'Continue with Email'}</button></form>
+        <form onSubmit={handleEmailLogin}><input aria-label="Email address" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" style={{ width: '100%', boxSizing: 'border-box', marginBottom: 10, padding: '12px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: '#1c1b24', color: '#fff' }} /><input aria-label="Password" type="password" required minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password (8+ characters)" style={{ width: '100%', boxSizing: 'border-box', marginBottom: 10, padding: '12px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: '#1c1b24', color: '#fff' }} />{emailError && <div style={{ color: '#ff4d73', fontSize: 12, marginBottom: 10, textAlign: 'center' }}>{emailError}</div>}<button type="submit" disabled={emailLoading} style={{ width: '100%', padding: 12, borderRadius: 10, border: '1px solid rgba(255,255,255,0.15)', background: '#1c1b24', color: '#fff', fontWeight: 700 }}>{emailLoading ? 'Continuing...' : 'Continue with Email'}</button></form>
         <button type="button" onClick={() => navigate('/')} style={{ width: '100%', marginTop: 22, border: 0, background: 'transparent', color: '#827e99', cursor: 'pointer' }}>← Back to Home</button>
       </section>
     </main>
