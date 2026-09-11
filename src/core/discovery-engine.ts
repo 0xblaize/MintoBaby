@@ -8,6 +8,10 @@ export const VERIFICATION_STATUS = {
 export type CollectionMetadata = {
   name?: string;
   symbol?: string;
+  totalSupply?: bigint;
+  maxSupply?: bigint;
+  maxPerWallet?: bigint;
+  alreadyMintedByWallet?: bigint;
 };
 
 export type DiscoveryResult =
@@ -231,6 +235,47 @@ async function fetchSeaDropPublicStage(nftAddress: string, rpcUrl: string): Prom
   return undefined;
 }
 
+/**
+ * Client-based preflight reads (viem PublicClient). Each read is optional:
+ * unavailable methods simply yield undefined and fall back to raw probing.
+ */
+async function probeViaClient(client: PublicClient, address: `0x${string}`): Promise<DiscoveryResult | undefined> {
+  const tryRead = async <T>(functionName: string, args?: readonly unknown[]): Promise<T | undefined> => {
+    try {
+      return (await client.readContract({ address, abi: [] as never, functionName, args } as never)) as T;
+    } catch {
+      return undefined;
+    }
+  };
+
+  const name = await tryRead<string>('name');
+  const symbol = await tryRead<string>('symbol');
+  const totalSupply = await tryRead<bigint>('totalSupply');
+  const maxSupply = await tryRead<bigint>('maxSupply');
+  const maxMintPerWallet = await tryRead<bigint>('maxMintAmountPerWallet');
+  const alreadyMintedByWallet = await tryRead<bigint>('mintedPerWallet', [address]);
+  const mintPrice = await tryRead<bigint>('mintPrice');
+  const isPublicMintActive = await tryRead<boolean>('isPublicMintActive');
+  const paused = await tryRead<boolean>('paused');
+
+  const hasData = name !== undefined || symbol !== undefined || mintPrice !== undefined || isPublicMintActive !== undefined;
+  if (!hasData) return undefined;
+
+  return {
+    status: 'CLASSIFIED_SAFE',
+    schemaId: 'STANDARD_ERC721_MINT',
+    address,
+    pricePerNft: mintPrice ?? 0n,
+    priceStatus: mintPrice !== undefined ? 'known' : 'unavailable',
+    maxPerWallet: maxMintPerWallet !== undefined && maxMintPerWallet > 0n && maxMintPerWallet <= 10000n ? Number(maxMintPerWallet) : undefined,
+    phaseKind: isPublicMintActive !== undefined ? 'public' : 'unknown',
+    phaseStatus: isPublicMintActive === true ? 'open' : isPublicMintActive === false ? 'not_open' : 'unknown',
+    isLive: isPublicMintActive === true && paused !== true,
+    detectedFunctions: ['mint', 'publicMint', 'claim'],
+    metadata: { name, symbol, totalSupply, maxSupply, maxPerWallet: maxMintPerWallet, alreadyMintedByWallet }
+  };
+}
+
 export async function discoverRobinhoodContract(client: PublicClient, rawAddress: string, rpcUrl: string = ROBINHOOD_RPC): Promise<DiscoveryResult> {
   let address: `0x${string}`;
   try {
@@ -239,8 +284,25 @@ export async function discoverRobinhoodContract(client: PublicClient, rawAddress
     return { status: 'UNCLASSIFIED_DISABLED', reason: 'Invalid address — must be 0x + 40 hex chars.' };
   }
 
+  let chainId: number;
+  try {
+    chainId = Number(await client.getChainId());
+  } catch (e) {
+    return { status: 'UNCLASSIFIED_DISABLED', reason: `RPC unreachable: ${e instanceof Error ? e.message : String(e)}` };
+  }
+  if (chainId !== 4663) {
+    return { status: 'UNCLASSIFIED_DISABLED', reason: `RPC chain id ${chainId} is not Robinhood Chain (4663). Scans must run against the configured network.` };
+  }
+
   console.log(`[DISCOVERY] ─── Fresh on-chain scan ${address} ───`);
 
+  const clientResult = await probeViaClient(client, address);
+  if (clientResult) return clientResult;
+
+  return probeViaRpcFetch(address, rpcUrl);
+}
+
+async function probeViaRpcFetch(address: `0x${string}`, rpcUrl: string = ROBINHOOD_RPC): Promise<DiscoveryResult> {
   try {
     // Fetch identity first with extra retries so the setup card never races the metadata calls.
     const nameHex = await ethCall(address, '0x06fdde03', rpcUrl, 4);
@@ -389,16 +451,8 @@ export async function discoverRobinhoodContract(client: PublicClient, rawAddress
   } catch (err) {
     console.error('[DISCOVERY] Fatal error:', err);
     return {
-      status: 'CLASSIFIED_SAFE',
-      schemaId: 'STANDARD_ERC721_MINT',
-      address,
-      pricePerNft: 0n,
-      priceStatus: 'unavailable',
-      phaseKind: 'unknown',
-      phaseStatus: 'unknown',
-      isLive: false,
-      detectedFunctions: ['mint', 'publicMint', 'claim'],
-      metadata: { name: undefined, symbol: undefined }
+      status: 'UNCLASSIFIED_DISABLED',
+      reason: `Discovery failed: ${err instanceof Error ? err.message : String(err)}`
     };
   }
 }

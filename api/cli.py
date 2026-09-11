@@ -574,10 +574,20 @@ def wallet_export():
 
 
 # ---------------------------------------------------------------------------
-# copy-mint sub-commands
+# copy-mint sub-commands (feature not integrated yet)
 # ---------------------------------------------------------------------------
-copy_app = typer.Typer(help="Copy-minting alpha radar commands")
+copy_app = typer.Typer(help="Copy-minting radar (currently unavailable)")
 app.add_typer(copy_app, name="copymint")
+
+
+def _copy_mint_unavailable():
+    console.print(Panel(
+        f"[{WARNING}]Copy-Mint Radar is not available yet.[/{WARNING}]\n\n"
+        f"[{DIM}]Whale-wallet mirroring is being rebuilt on dedicated per-network adapters with "
+        f"real block decoding and preflight simulation. Until those adapters are released, "
+        f"no copy-mint rules can be armed and no private key is needed here.[/{DIM}]",
+        title=f"[{ACCENT}]Coming Soon[/{ACCENT}]", box=box.ROUNDED, border_style=ACCENT
+    ))
 
 
 @copy_app.command("add")
@@ -587,25 +597,16 @@ def copy_add(
     max_qty: int = typer.Option(1, "--qty", "-q", help="Max quantity to copy"),
     max_price: str = typer.Option("0.5", "--max-price", "-p", help="Max price cap"),
 ):
-    """Add a target alpha wallet to copy-mint radar."""
+    """Copy-mint radar is not wired up yet — nothing is stored or executed."""
     _banner()
-    pk = _get_pk_or_prompt()
-    console.print(Panel(
-        f"[{ACCENT}]📡 Copy-Mint Radar Armed![/{ACCENT}]\n\n"
-        f"Target Wallet: [bold]{target}[/bold]\n"
-        f"Network:       [bold]{network.upper()}[/bold]\n"
-        f"Max Copy Qty:  {max_qty}\n"
-        f"Max Price:     {max_price}\n\n"
-        f"[{DIM}]MintoBaby will watch this target wallet and replay qualified mint transactions instantly.[/{DIM}]",
-        box=box.ROUNDED, border_style=ACCENT
-    ))
+    _copy_mint_unavailable()
 
 
 @copy_app.command("list")
 def copy_list():
-    """List tracked alpha wallets."""
+    """Copy-mint radar is not wired up yet — there are no rules."""
     _banner()
-    console.print(f"[{DIM}]Use web dashboard or API at http://localhost:8000/copymint/rules to view active rules.[/{DIM}]")
+    _copy_mint_unavailable()
 
 
 # ---------------------------------------------------------------------------
