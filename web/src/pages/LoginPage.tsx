@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useGoogleLogin } from '@react-oauth/google';
+import { GoogleLogin } from '@react-oauth/google';
 import { IconBolt, IconLock } from '../components/MintoIcons';
 
 const API_BASE = __MINTOBABY_CONFIG__.apiUrl;
@@ -9,11 +9,19 @@ const GOOGLE_ENABLED = Boolean(__MINTOBABY_CONFIG__.googleClientId.trim());
 type GoogleBridgeProps = { onToken: (token: string) => Promise<void>; onError: (message: string) => void; loading: boolean };
 
 function GoogleBridge({ onToken, onError, loading }: GoogleBridgeProps) {
-  const login = useGoogleLogin({
-    onSuccess: ({ access_token }) => void onToken(access_token),
-    onError: () => onError('Google sign-in was cancelled or failed.'),
-  });
-  return <button type="button" onClick={() => login()} disabled={loading} style={{ width: '100%', background: '#fff', color: '#1f1f1f', border: 0, borderRadius: 10, padding: '14px 20px', fontSize: 15, fontWeight: 600, cursor: loading ? 'wait' : 'pointer' }}>{loading ? 'Connecting Google...' : 'Continue with Google'}</button>;
+  return (
+    <div style={{ width: '100%', opacity: loading ? 0.6 : 1, pointerEvents: loading ? 'none' : 'auto' }}>
+      <GoogleLogin
+        onSuccess={(response) => {
+          if (response.credential) void onToken(response.credential);
+          else onError('Google did not return an ID token.');
+        }}
+        onError={() => onError('Google sign-in was cancelled or failed. Check the authorized Vercel origin in Google Cloud.')}
+        useOneTap={false}
+        width="100%"
+      />
+    </div>
+  );
 }
 
 export default function LoginPage() {

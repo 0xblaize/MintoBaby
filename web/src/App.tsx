@@ -46,6 +46,9 @@ export default function App() {
           <Route path="schedules" element={<SchedulesPage />} />
           <Route path="wallet" element={<WalletPage />} />
         </Route>
+
+        {/* Unknown routes fall back to the site */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getUserActivationCode } from '../utils/activation';
+import { getActivationCode } from '../utils/activation';
 import {
   IconTerminal,
   IconCopy,
@@ -16,7 +16,7 @@ import {
 
 export default function TerminalGuidePage() {
   const navigate = useNavigate();
-  const activationCode = getUserActivationCode();
+  const activationCode = getActivationCode();
   const [copiedKey, setCopiedKey] = useState(false);
   const [copiedCmd, setCopiedCmd] = useState<string | null>(null);
 
@@ -50,13 +50,13 @@ export default function TerminalGuidePage() {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#00ff88', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>
             <IconTerminal size={16} />
-            <span>SUB-10MS TERMINAL CLI SETUP</span>
+            <span>TERMINAL CLI SETUP</span>
           </div>
           <h1 style={{ fontSize: 28, fontWeight: 900, color: '#ffffff', margin: 0, letterSpacing: '-0.02em' }}>
             MintoBaby Terminal CLI Setup & Getting Started
           </h1>
           <p style={{ color: '#a0a0c0', fontSize: 14, marginTop: 6, margin: 0, maxWidth: 650 }}>
-            Run the high-frequency command-line interface for sub-10ms mempool interception, zero-latency RPC bidding, and headless background sniping.
+            Run the command-line interface for fast contract scanning, scheduled and direct mints, and headless background automation.
           </p>
         </div>
 
@@ -201,10 +201,10 @@ export default function TerminalGuidePage() {
             <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#00ff88', color: '#000', fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>
               3
             </div>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#ffffff', margin: 0 }}>Launch Mempool Sniper</h3>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#ffffff', margin: 0 }}>Launch Automation Daemon</h3>
           </div>
           <p style={{ fontSize: 13, color: '#827e99', lineHeight: 1.6, marginBottom: 12 }}>
-            Start the continuous background daemon for zero-latency execution:
+            Start the continuous background daemon that watches armed schedules and executes on approval:
           </p>
           <div style={{ background: '#181724', borderRadius: 8, padding: 12, position: 'relative' }}>
             <code style={{ color: '#00ff88', fontSize: 13, fontFamily: 'monospace' }}>
@@ -234,9 +234,9 @@ export default function TerminalGuidePage() {
             desc: 'Displays active wallet balances, connected chains (Robinhood 4663, Ink L2 57073, Solana), and RPC latency.'
           },
           {
-            title: 'Execute Direct Sub-10ms Mint',
+            title: 'Execute a Direct Mint',
             cmd: 'mintobaby mint --chain robinhood --contract 0x... --qty 1 --priority high',
-            desc: 'Intercepts block drop and submits raw signed transaction with priority gas bidding.'
+            desc: 'Simulates the mint, signs with your local wallet, submits with priority gas, and streams the receipt.'
           },
           {
             title: 'Probe & Scan Contract Specs',
@@ -244,9 +244,9 @@ export default function TerminalGuidePage() {
             desc: 'Probes SeaDrop phase, merkle proof requirement, total supply, and cost specs.'
           },
           {
-            title: 'Track & Mirror Whale Wallet',
-            cmd: 'mintobaby copymint --wallet 0xWhaleAddress --chain solana',
-            desc: 'Monitors target wallet on-chain and replays mint calls instantly with gas slippage shield.'
+            title: 'Schedule a Block-Accurate Mint',
+            cmd: 'mintobaby schedule --chain robinhood --contract 0x... --time 2026-09-12T16:00:00Z',
+            desc: 'Arms a trigger that fires the mint the instant the phase opens.'
           }
         ].map((item, idx) => (
           <div key={item.title} style={{ background: '#12111a', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 12, padding: 20 }}>

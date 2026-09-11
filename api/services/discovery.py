@@ -127,7 +127,7 @@ class DiscoveryService:
         zero_price = any(p == 0 for p in prices if p is not None)
         sea_price = seadrop["price_wei"] if seadrop else None
         price_wei = (sea_price if sea_price and sea_price > 0 else None) or std_price or 0
-        price_eth = f"{price_wei / 1e18:.6f}"
+        price_native = f"{price_wei / 1e18:.6f}"
         price_status = "known" if (std_price is not None or zero_price or sea_price is not None) else "unavailable"
 
         # Max per wallet
@@ -187,7 +187,7 @@ class DiscoveryService:
             address=address,
             name=name,
             symbol=symbol,
-            price_eth=price_eth,
+            price_native=price_native,
             price_status=price_status,
             phase_kind=phase_kind,
             phase_status=phase_status,

@@ -29,7 +29,7 @@ def _save_raw(data: dict):
 
 
 def get_chain() -> ChainService:
-    return ChainService(settings.rpc_url, settings.chain_id)
+    return ChainService(settings.robinhood_rpc_url, settings.robinhood_chain_id, "robinhood")
 
 
 @router.get("/", response_model=WalletInfo)
@@ -38,7 +38,7 @@ async def get_wallet(chain: ChainService = Depends(get_chain)):
     if not raw:
         raise HTTPException(status_code=404, detail="No wallet found. Generate or import one first.")
     balance = await chain.get_balance(raw["address"])
-    return WalletInfo(address=raw["address"], has_key=True, balance_eth=balance)
+    return WalletInfo(address=raw["address"], has_key=True, balance_native=balance, symbol=chain.symbol)
 
 
 @router.post("/generate", response_model=WalletInfo)
@@ -47,7 +47,7 @@ async def generate(chain: ChainService = Depends(get_chain)):
     enc = encrypt_key(w["private_key"], settings.encryption_secret)
     _save_raw({"address": w["address"], **enc})
     balance = await chain.get_balance(w["address"])
-    return WalletInfo(address=w["address"], has_key=True, balance_eth=balance)
+    return WalletInfo(address=w["address"], has_key=True, balance_native=balance, symbol=chain.symbol)
 
 
 @router.post("/import", response_model=WalletInfo)
@@ -57,7 +57,7 @@ async def import_key(req: ImportKeyRequest, chain: ChainService = Depends(get_ch
         enc = encrypt_key(w["private_key"], settings.encryption_secret)
         _save_raw({"address": w["address"], **enc})
         balance = await chain.get_balance(w["address"])
-        return WalletInfo(address=w["address"], has_key=True, balance_eth=balance)
+        return WalletInfo(address=w["address"], has_key=True, balance_native=balance, symbol=chain.symbol)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Invalid private key: {exc}")
 
@@ -72,7 +72,7 @@ async def export_key(chain: ChainService = Depends(get_chain)):
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Decryption failed: {exc}")
     balance = await chain.get_balance(raw["address"])
-    return WalletExport(address=raw["address"], has_key=True, balance_eth=balance, private_key=pk)
+    return WalletExport(address=raw["address"], has_key=True, balance_native=balance, symbol=chain.symbol, private_key=pk)
 
 
 @router.delete("/")

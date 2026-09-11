@@ -20,6 +20,11 @@ export interface Env {
   TELEGRAM_ALLOWLIST_USER_IDS?: string;
   ROBINHOOD_RPC_URL?: string;
   ROBINHOOD_CHAIN_ID?: string;
+  SOLANA_RPC_URL?: string;
+  SOLANA_EXPLORER_URL?: string;
+  INK_RPC_URL?: string;
+  INK_CHAIN_ID?: string;
+  INK_EXPLORER_URL?: string;
   BOT_PRIVATE_KEY?: string;
   ENCRYPTION_SECRET?: string;
   AUTO_MINT_EXECUTOR_ADDRESS?: string;
@@ -54,6 +59,11 @@ function getWorkerConfig(env: Env): Config {
   return {
     rpcUrl,
     chainId,
+    solanaRpcUrl: env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com',
+    solanaExplorerUrl: env.SOLANA_EXPLORER_URL || 'https://solscan.io',
+    inkRpcUrl: env.INK_RPC_URL || 'https://rpc-gel.inkonchain.com',
+    inkChainId: env.INK_CHAIN_ID ? parseInt(env.INK_CHAIN_ID, 10) : 57073,
+    inkExplorerUrl: env.INK_EXPLORER_URL || 'https://explorer.inkonchain.com',
     contractAddress: '0x0000000000000000000000000000000000000000',
     abi: [],
     eventName: 'AutoMintExecuted',

@@ -1,50 +1,43 @@
-// Utility to manage user's single activation code (1 per person)
-// Used to activate both Telegram Bot and CLI Terminal
-
-const STORAGE_KEY = 'mintobaby_user_activation_code';
-
-export function generateActivationCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const segment = () => {
-    let res = '';
-    for (let i = 0; i < 4; i++) {
-      res += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return res;
-  };
-  return `MINTO-${segment()}-${segment()}-${segment()}`;
+export interface StoredUser {
+  sub?: string;
+  email?: string;
+  name?: string;
+  picture?: string;
+  activation_code?: string;
+  isAdmin?: boolean;
 }
 
-export function getUserActivationCode(): string {
-  let code = localStorage.getItem(STORAGE_KEY);
-  if (!code) {
-    code = generateActivationCode();
-    localStorage.setItem(STORAGE_KEY, code);
+const SESSION_KEY = 'mintobaby_session';
+const SUBSCRIPTION_KEY = 'mintobaby_subscription';
+
+export function getStoredUser(): StoredUser | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    return raw ? (JSON.parse(raw) as StoredUser) : null;
+  } catch {
+    return null;
   }
-  return code;
 }
 
-export function regenerateUserActivationCode(): string {
-  const newCode = generateActivationCode();
-  localStorage.setItem(STORAGE_KEY, newCode);
-  return newCode;
+/** The real activation code issued by the backend at sign-up. Empty when signed out. */
+export function getActivationCode(): string {
+  return getStoredUser()?.activation_code?.trim() ?? '';
 }
 
-export interface ActivationStatus {
-  webConsole: boolean;
-  telegramBot: boolean;
-  cliTerminal: boolean;
-  code: string;
-  activatedAt: string;
+export function hasSession(): boolean {
+  return Boolean(localStorage.getItem(SESSION_KEY));
 }
 
-export function getUserActivationDetails(): ActivationStatus {
-  const code = getUserActivationCode();
-  return {
-    webConsole: true,
-    telegramBot: true,
-    cliTerminal: true,
-    code,
-    activatedAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  };
+export function hasUnlocked(): boolean {
+  return Boolean(localStorage.getItem(SUBSCRIPTION_KEY) || getActivationCode());
+}
+
+export function storeSubscriptionActive(): boolean {
+  try {
+    const raw = localStorage.getItem(SUBSCRIPTION_KEY);
+    if (!raw) return false;
+    return JSON.parse(raw)?.active === true;
+  } catch {
+    return false;
+  }
 }

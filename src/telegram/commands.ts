@@ -1251,9 +1251,10 @@ export class CommandHandler {
         return true;
       }
 
+      const flowContract = state.flow.contract;
       state.flow = undefined;
       state.targetTimeMs = scheduledTimeMs;
-      await this.store.setTargetSchedule?.(userKey, scheduledTimeMs);
+      if (flowContract) await this.store.setTargetSchedule?.(userKey, flowContract, scheduledTimeMs);
 
       const wallet = await this.getUserWallet(userKey);
       if (!wallet) return true;

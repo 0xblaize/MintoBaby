@@ -1,271 +1,121 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getUserActivationDetails, regenerateUserActivationCode } from '../utils/activation';
-import {
-  IconUser,
-  IconKey,
-  IconCopy,
-  IconCheck,
-  IconRefresh,
-  IconShieldCheck,
-  IconTelegram,
-  IconTerminal,
-  IconDashboard,
-  IconArrowRight,
-  IconZap,
-  IconClock
-} from '../components/Icons';
+import { api } from '../api';
+import { getActivationCode, getStoredUser, storeSubscriptionActive } from '../utils/activation';
+import { Alert, Button, Card, CopyChip, PageHeader, StatusBadge } from '../components/ui';
+import { IconDashboard, IconKey, IconTelegram, IconTerminal } from '../components/Icons';
+
+type PairState = 'checking' | 'paired' | 'unpaired' | 'offline';
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const [details, setDetails] = useState(getUserActivationDetails());
-  const [copied, setCopied] = useState(false);
-  const [regenerating, setRegenerating] = useState(false);
+  const user = getStoredUser();
+  const code = getActivationCode();
+  const paid = storeSubscriptionActive();
+  const [pair, setPair] = useState<PairState>(code ? 'checking' : 'unpaired');
 
-  const handleCopyCode = () => {
-    navigator.clipboard.writeText(details.code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  useEffect(() => {
+    if (!code) return;
+    let alive = true;
+    api.verifyKey(code)
+      .then(r => { if (alive) setPair(r.valid ? 'paired' : 'unpaired'); })
+      .catch(() => { if (alive) setPair('offline'); });
+    return () => { alive = false; };
+  }, [code]);
 
-  const handleRegenerate = () => {
-    if (window.confirm('Are you sure you want to regenerate your activation key? You will need to re-enter the new code in your Telegram Bot and Terminal CLI.')) {
-      setRegenerating(true);
-      const newCode = regenerateUserActivationCode();
-      setDetails(getUserActivationDetails());
-      setRegenerating(false);
-    }
+  const pairBadge = (label: string) => {
+    if (!code) return <StatusBadge status="unavailable" />;
+    if (pair === 'checking') return <StatusBadge status="unknown" />;
+    if (pair === 'offline') return <StatusBadge status="unavailable" />;
+    return <StatusBadge status={pair === 'paired' ? 'known' : 'not_open'} />;
   };
 
   return (
-    <div style={{ maxWidth: 1000, margin: '0 auto', paddingBottom: 40 }}>
-      {/* Top Banner */}
-      <div style={{
-        background: 'linear-gradient(135deg, rgba(107, 60, 232, 0.15) 0%, rgba(0, 204, 255, 0.08) 100%)',
-        border: '1px solid rgba(107, 60, 232, 0.3)',
-        borderRadius: 16,
-        padding: '28px 32px',
-        marginBottom: 32,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 20
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div style={{
-            width: 60,
-            height: 60,
-            borderRadius: '50%',
-            background: '#6b3ce8',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#ffffff'
-          }}>
-            <IconUser size={32} />
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#00ff88', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-              <IconShieldCheck size={16} />
-              <span>PRO MEMBER · ACTIVE</span>
-            </div>
-            <h1 style={{ fontSize: 26, fontWeight: 900, color: '#ffffff', margin: '4px 0 0 0' }}>
-              User Account Profile
-            </h1>
-            <div style={{ fontSize: 13, color: '#827e99', marginTop: 4 }}>
-              Account ID: usr_minto_9941a82 · Tier: MintoBaby Matrix PRO
-            </div>
-          </div>
-        </div>
+    <div style={{ maxWidth: 860, margin: '0 auto' }}>
+      <PageHeader title="Profile & Key" subtitle="Account details, activation key, and service pairing" />
 
-        <button
-          onClick={() => navigate('/setup')}
-          style={{
-            background: '#6b3ce8',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: 8,
-            padding: '10px 18px',
-            fontSize: 13,
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8
-          }}
-        >
-          <span>Open Setup Hub</span>
-          <IconArrowRight size={14} />
-        </button>
-      </div>
-
-      {/* SINGLE ACTIVATION CODE CARD */}
-      <div style={{
-        background: '#12111a',
-        border: '1px solid rgba(107, 60, 232, 0.5)',
-        borderRadius: 16,
-        padding: 28,
-        marginBottom: 32
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <IconKey size={22} color="#00ff88" />
-            <div>
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#ffffff', margin: 0 }}>
-                Single User Activation Code (1 Per Person)
-              </h2>
-              <div style={{ fontSize: 12, color: '#827e99', marginTop: 2 }}>
-                Use this exact key to activate both your Telegram Bot (@MintoBabyBot) and Terminal CLI.
-              </div>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button
-              onClick={handleRegenerate}
-              disabled={regenerating}
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                color: '#827e99',
-                borderRadius: 8,
-                padding: '8px 14px',
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6
-              }}
-            >
-              <IconRefresh size={14} />
-              <span>Regenerate Key</span>
-            </button>
-          </div>
-        </div>
-
-        <div style={{
-          background: '#0a0a10',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          borderRadius: 12,
-          padding: '20px 24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 16
-        }}>
-          <div>
-            <div style={{ fontSize: 11, color: '#6e6a85', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 4 }}>
-              ACTIVATION KEY
-            </div>
-            <code style={{
-              fontSize: 22,
-              fontWeight: 900,
-              color: '#00ff88',
-              fontFamily: 'monospace',
-              letterSpacing: '0.15em'
+      <Card style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 18 }}>
+        {user?.picture
+          ? <img src={user.picture} alt="" style={{ width: 54, height: 54, borderRadius: '50%', border: '2px solid var(--mb-violet)' }} />
+          : (
+            <div style={{
+              width: 54, height: 54, borderRadius: '50%', background: 'var(--mb-violet)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, color: '#fff',
             }}>
-              {details.code}
-            </code>
-          </div>
-
-          <button
-            onClick={handleCopyCode}
-            style={{
-              background: copied ? '#00ff88' : '#6b3ce8',
-              color: copied ? '#000000' : '#ffffff',
-              border: 'none',
-              borderRadius: 8,
-              padding: '12px 24px',
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              transition: 'all 0.2s'
-            }}
-          >
-            {copied ? <IconCheck size={18} /> : <IconCopy size={18} />}
-            <span>{copied ? 'Copied Code!' : 'Copy Activation Code'}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Linked Devices & Vector Status */}
-      <h2 style={{ fontSize: 18, fontWeight: 800, color: '#ffffff', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <IconZap size={20} color="#6b3ce8" />
-        <span>Connected Vector Services</span>
-      </h2>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, marginBottom: 36 }}>
-        {/* Web Console */}
-        <div style={{ background: '#12111a', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 12, padding: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <IconDashboard size={20} color="#6b3ce8" />
-              <span style={{ fontSize: 15, fontWeight: 700, color: '#ffffff' }}>Web Console</span>
+              {(user?.name || user?.email || '?').slice(0, 1).toUpperCase()}
             </div>
-            <span style={{ background: 'rgba(0, 255, 136, 0.15)', color: '#00ff88', fontSize: 11, fontWeight: 700, padding: '4px 8px', borderRadius: 6 }}>
-              ACTIVE
-            </span>
-          </div>
-          <div style={{ fontSize: 12, color: '#827e99', marginBottom: 16 }}>
-            Full visual Matrix Engine interface active in current browser session.
-          </div>
-          <button
-            onClick={() => navigate('/dashboard')}
-            style={{ width: '100%', background: '#181724', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#ffffff', padding: '8px 0', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-          >
-            Go to Dashboard
-          </button>
+          )}
+        <div style={{ flex: 1, minWidth: 180 }}>
+          <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--mb-text)' }}>{user?.name || 'Signed-out guest'}</div>
+          <div style={{ fontSize: 12.5, color: 'var(--mb-muted)', marginTop: 2 }}>{user?.email ?? 'Sign in to sync your profile and key'}</div>
         </div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <span className={`mb-badge ${paid ? 'mb-badge-green' : 'mb-badge-gray'}`}>{paid ? 'Subscription active' : 'No active subscription'}</span>
+          {user?.isAdmin && <span className="mb-badge mb-badge-violet">Admin</span>}
+        </div>
+      </Card>
 
-        {/* Telegram Bot */}
-        <div style={{ background: '#12111a', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 12, padding: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <IconTelegram size={20} color="#00ccff" />
-              <span style={{ fontSize: 15, fontWeight: 700, color: '#ffffff' }}>Telegram Bot</span>
-            </div>
-            <span style={{ background: 'rgba(0, 204, 255, 0.15)', color: '#00ccff', fontSize: 11, fontWeight: 700, padding: '4px 8px', borderRadius: 6 }}>
-              READY TO PAIR
-            </span>
-          </div>
-          <div style={{ fontSize: 12, color: '#827e99', marginBottom: 16 }}>
-            Send `/activate {details.code}` to `@MintoBabyBot` on Telegram.
-          </div>
-          <button
-            onClick={() => navigate('/telegram-guide')}
-            style={{ width: '100%', background: '#181724', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#00ccff', padding: '8px 0', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-          >
-            View Telegram Setup
-          </button>
+      <Card style={{ marginBottom: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+          <IconKey size={17} color="var(--mb-violet)" />
+          <div style={{ fontSize: 14.5, fontWeight: 650, color: 'var(--mb-text)' }}>Activation Key</div>
         </div>
+        {code ? (
+          <>
+            <p style={{ fontSize: 12.5, color: 'var(--mb-muted)', margin: '0 0 14px', lineHeight: 1.6 }}>
+              One key pairs this account everywhere. It is issued by the backend when you sign in — keep it private.
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <CopyChip text={code} style={{ fontSize: 15, padding: '10px 16px', letterSpacing: '0.08em' }} />
+              <span style={{ fontSize: 11.5, color: 'var(--mb-muted)' }}>
+                {pair === 'paired' ? 'Registered on the engine' : pair === 'offline' ? 'Engine offline — status unknown' : pair === 'checking' ? 'Checking…' : 'Not yet registered'}
+              </span>
+            </div>
+          </>
+        ) : (
+          <Alert kind="info">
+            You are browsing without an account key. <Button variant="ghost" size="sm" onClick={() => navigate('/login')}>Go to sign in</Button>
+          </Alert>
+        )}
+      </Card>
 
-        {/* Terminal CLI */}
-        <div style={{ background: '#12111a', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 12, padding: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <IconTerminal size={20} color="#00ff88" />
-              <span style={{ fontSize: 15, fontWeight: 700, color: '#ffffff' }}>Terminal CLI</span>
-            </div>
-            <span style={{ background: 'rgba(0, 255, 136, 0.15)', color: '#00ff88', fontSize: 11, fontWeight: 700, padding: '4px 8px', borderRadius: 6 }}>
-              READY TO PAIR
+      <div className="mb-grid mb-grid-3" style={{ alignItems: 'stretch' }}>
+        <Card>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, fontWeight: 650, color: 'var(--mb-text)' }}>
+              <IconDashboard size={16} color="var(--mb-violet)" /> Web Console
             </span>
+            <StatusBadge status={user ? 'known' : 'unavailable'} />
           </div>
-          <div style={{ fontSize: 12, color: '#827e99', marginBottom: 16 }}>
-            Run `mintobaby login --code {details.code}` in your shell terminal.
+          <div style={{ fontSize: 12, color: 'var(--mb-muted)', lineHeight: 1.6, marginBottom: 14 }}>Current browser session.</div>
+          <Button block variant="ghost" size="sm" onClick={() => navigate('/dashboard')}>Open Dashboard</Button>
+        </Card>
+
+        <Card>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, fontWeight: 650, color: 'var(--mb-text)' }}>
+              <IconTelegram size={16} color="var(--mb-cyan)" /> Telegram Bot
+            </span>
+            {pairBadge('bot')}
           </div>
-          <button
-            onClick={() => navigate('/terminal-guide')}
-            style={{ width: '100%', background: '#181724', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#00ff88', padding: '8px 0', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-          >
-            View Terminal Setup
-          </button>
-        </div>
+          <div style={{ fontSize: 12, color: 'var(--mb-muted)', lineHeight: 1.6, marginBottom: 14 }}>
+            {code ? <>Send <span className="mb-mono">/activate {code}</span> to the bot.</> : 'Requires an activation key.'}
+          </div>
+          <Button block variant="ghost" size="sm" onClick={() => navigate('/telegram-guide')}>View Guide</Button>
+        </Card>
+
+        <Card>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, fontWeight: 650, color: 'var(--mb-text)' }}>
+              <IconTerminal size={16} color="var(--mb-green)" /> Terminal CLI
+            </span>
+            {pairBadge('cli')}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--mb-muted)', lineHeight: 1.6, marginBottom: 14 }}>
+            {code ? <>Run <span className="mb-mono">mintobaby login --code {code}</span></> : 'Requires an activation key.'}
+          </div>
+          <Button block variant="ghost" size="sm" onClick={() => navigate('/terminal-guide')}>View Guide</Button>
+        </Card>
       </div>
     </div>
   );

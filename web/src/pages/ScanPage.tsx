@@ -1,20 +1,22 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../api';
-import type { DiscoveryResult } from '../types';
-import { StatusBadge } from '../components/StatusBadge';
-import { IconSearch, IconArrowRight, IconClock, IconBolt } from '../components/Icons';
+import { Alert, Button, Card, PageHeader, StatusBadge } from '../components/ui';
+import { IconBolt, IconClock, IconSearch } from '../components/Icons';
+import { EXPLORERS, type DiscoveryResult, type NetworkType } from '../types';
 
-const EXPLORER = 'https://robinhoodchain.blockscout.com';
-
-function fmtTime(ms?: number) {
+function fmtTime(ms?: number | null) {
   if (!ms) return 'Unknown';
   return new Date(ms).toUTCString();
 }
 
 export default function ScanPage() {
   const nav = useNavigate();
-  const [address, setAddress] = useState('');
+  const loc = useLocation();
+  const state = loc.state as { contract?: string } | null;
+
+  const [address, setAddress] = useState(state?.contract ?? '');
+  const [network, setNetwork] = useState<NetworkType>('robinhood');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<DiscoveryResult | null>(null);
   const [error, setError] = useState('');
@@ -23,7 +25,7 @@ export default function ScanPage() {
     if (!address.trim()) return;
     setLoading(true); setError(''); setResult(null);
     try {
-      setResult(await api.scan(address.trim()));
+      setResult(await api.scan(address.trim(), network));
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Scan failed');
     } finally {
@@ -31,96 +33,112 @@ export default function ScanPage() {
     }
   }
 
-  const inp: React.CSSProperties = {
-    background: '#12111a', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: 8,
-    padding: '12px 16px', color: '#e0e0ff', fontSize: 14, outline: 'none', width: '100%',
-  };
-  const btn = (color = '#00ff88'): React.CSSProperties => ({
-    background: 'transparent', border: `1px solid ${color}`, borderRadius: 8,
-    padding: '11px 22px', color, cursor: 'pointer', fontSize: 14, fontWeight: 600,
-    display: 'flex', alignItems: 'center', gap: 8
-  });
+  const explorer = EXPLORERS[network];
+  const currency = network === 'solana' ? 'SOL' : 'ETH';
 
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 26, fontWeight: 900, marginBottom: 20, color: '#ffffff', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <IconSearch size={24} color="#6b3ce8" />
-        <span>Scan Collection Contract</span>
-      </h1>
+      <PageHeader
+        title="Contract Scanner"
+        subtitle="Fresh on-chain inspection — nothing is cached, nothing is guessed"
+      />
 
-      <div style={{ display: 'flex', gap: 12, marginBottom: 28 }}>
-        <input
-          style={inp}
-          value={address}
-          onChange={e => setAddress(e.target.value)}
-          placeholder="Enter 0x... NFT contract address"
-          onKeyDown={e => e.key === 'Enter' && doScan()}
-        />
-        <button style={btn('#00ff88')} onClick={doScan} disabled={loading}>
-          <span>{loading ? 'Scanning…' : 'Scan Contract'}</span>
-        </button>
-      </div>
+      <Card style={{ padding: 20, marginBottom: 20 }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 340px' }}>
+            <input
+              className="mb-input mb-mono"
+              value={address}
+              onChange={e => setAddress(e.target.value)}
+              placeholder={network === 'solana' ? 'Solana program / mint address' : '0x… NFT contract address'}
+              onKeyDown={e => e.key === 'Enter' && doScan()}
+            />
+          </div>
+          <select className="mb-select" style={{ width: 180 }} value={network} onChange={e => setNetwork(e.target.value as NetworkType)}>
+            <option value="robinhood">Robinhood Chain</option>
+            <option value="ink">Ink L2</option>
+            <option value="solana">Solana</option>
+          </select>
+          <Button onClick={doScan} disabled={loading || !address.trim()}>
+            <IconSearch size={14} />
+            <span>{loading ? 'Scanning…' : 'Scan Contract'}</span>
+          </Button>
+        </div>
+      </Card>
 
-      {error && <div style={{ color: '#ff4444', background: '#1a1a24', border: '1px solid #ff4444', borderRadius: 8, padding: 16, marginBottom: 16 }}>{error}</div>}
+      {error && <div style={{ marginBottom: 20 }}><Alert kind="error">{error}</Alert></div>}
 
       {result && (
-        <div style={{ background: '#12111a', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 14, padding: 28 }}>
-          {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+        <Card>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
             <div>
-              <h2 style={{ fontSize: 22, fontWeight: 800, color: '#ffffff', margin: 0 }}>
+              <h2 style={{ fontSize: 19, fontWeight: 700, color: 'var(--mb-text)', margin: 0, fontFamily: 'var(--mb-font-head)' }}>
                 {result.name ?? 'Unknown Collection'}
-                {result.symbol && <span style={{ color: '#827e99', fontSize: 14, marginLeft: 8 }}>({result.symbol})</span>}
+                {result.symbol && <span style={{ color: 'var(--mb-muted)', fontSize: 13, marginLeft: 8 }}>({result.symbol})</span>}
               </h2>
-              <a href={`${EXPLORER}/address/${result.address}`} target="_blank" rel="noreferrer"
-                style={{ fontSize: 12, color: '#6b3ce8', fontFamily: 'monospace', textDecoration: 'none', display: 'inline-block', marginTop: 4 }}>
+              <a href={`${explorer}/address/${result.address}`} target="_blank" rel="noreferrer"
+                className="mb-link mb-mono" style={{ fontSize: 12, display: 'inline-block', marginTop: 5 }}>
                 {result.address}
               </a>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
               <StatusBadge status={result.phase_status} />
               <StatusBadge status={result.phase_kind} />
             </div>
           </div>
 
-          {/* Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+          <div className="mb-grid mb-grid-2" style={{ marginBottom: 20 }}>
             {[
-              ['Price', `${result.price_eth} ETH`, result.price_status],
-              ['Phase Status', result.phase_status, undefined],
-              ['Phase Kind', result.phase_kind, undefined],
-              ['Live Now', result.is_live ? 'YES' : 'NO', undefined],
-              ['Opens', fmtTime(result.on_chain_start_time_ms), undefined],
-              ['Closes', fmtTime(result.on_chain_end_time_ms), undefined],
-              ['Max / Wallet', result.max_per_wallet ? String(result.max_per_wallet) : 'Unlimited', undefined],
-              ...(result.sea_drop_address ? [['SeaDrop Address', result.sea_drop_address, undefined] as [string, string, undefined]] : []),
-            ].map(([k, v]) => (
-              <div key={k as string} style={{ background: '#171622', borderRadius: 8, padding: '14px 18px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                <div style={{ fontSize: 11, color: '#827e99', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{k as string}</div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#ffffff', wordBreak: 'break-all' }}>{v as string}</div>
+              ['Price', `${result.price_native ?? '0'} ${currency}`, result.price_status],
+              ['Live now', result.is_live ? 'Yes' : 'No', null],
+              ['Opens', fmtTime(result.on_chain_start_time_ms), null],
+              ['Closes', fmtTime(result.on_chain_end_time_ms), null],
+              ['Max / wallet', result.max_per_wallet ? String(result.max_per_wallet) : 'Unlimited', null],
+              ...(result.sea_drop_address
+                ? [['SeaDrop', result.sea_drop_address, null] as [string, string, string | null]]
+                : []),
+            ].map(([k, v, badge]) => (
+              <div key={k} style={{ background: 'var(--mb-raised)', borderRadius: 10, padding: '12px 16px', border: '1px solid var(--mb-border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 11, color: 'var(--mb-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>{k}</span>
+                  {badge && <StatusBadge status={badge} />}
+                </div>
+                <div style={{ fontSize: 14.5, fontWeight: 650, color: 'var(--mb-text)', wordBreak: 'break-all', marginTop: 5 }} className={k === 'SeaDrop' ? 'mb-mono' : ''}>
+                  {v}
+                </div>
               </div>
             ))}
           </div>
 
-          {/* Action buttons */}
-          <div style={{ display: 'flex', gap: 12 }}>
+          {result.price_status === 'unavailable' && (
+            <div style={{ marginBottom: 16 }}>
+              <Alert kind="warn">Price could not be read on-chain. Never mint blind — verify the price manually on the explorer before sending funds.</Alert>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             {result.is_live && (
-              <button style={btn('#00ff88')} onClick={() => nav('/mint', { state: { contract: result.address, price: result.price_eth } })}>
-                <IconBolt size={16} />
-                <span>Mint Now</span>
-              </button>
+              <Button variant="success" onClick={() => nav('/mint', { state: { contract: result.address, price: result.price_native, network } })}>
+                <IconBolt size={15} /> Review Mint
+              </Button>
             )}
             {!result.is_live && result.on_chain_start_time_ms && (
-              <button style={btn('#ffd700')} onClick={() => nav('/schedule', { state: { contract: result.address, price: result.price_eth, mintTimeMs: result.on_chain_start_time_ms } })}>
-                <IconClock size={16} />
-                <span>Schedule Mints</span>
-              </button>
+              <Button onClick={() => nav('/schedule', { state: { contract: result.address, price: result.price_native, mintTimeMs: result.on_chain_start_time_ms, network } })}>
+                <IconClock size={15} /> Prepare Schedule
+              </Button>
             )}
-            <button style={btn('#827e99')} onClick={() => nav('/schedule', { state: { contract: result.address, price: result.price_eth } })}>
-              <span>Set Custom Time</span>
-            </button>
+            <Button variant="ghost" onClick={() => nav('/setup')}>Setup Telegram / Terminal</Button>
           </div>
-        </div>
+        </Card>
+      )}
+
+      {!result && !loading && !error && (
+        <Card>
+          <div className="mb-empty">
+            Paste a contract address above and scan. The result shows collection metadata, mint price,
+            phase status, timing, and per-wallet limits read directly from the chain.
+          </div>
+        </Card>
       )}
     </div>
   );

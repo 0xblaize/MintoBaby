@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { api } from '../api';
-import { getUserActivationCode } from '../utils/activation';
+import { getActivationCode, getStoredUser, hasSession, hasUnlocked } from '../utils/activation';
+import { useAuth } from '../context/AuthContext';
+import type { HealthResponse } from '../types';
 import {
   MintoLogo,
   IconDashboard,
@@ -15,327 +17,218 @@ import {
   IconTelegram,
   IconTerminal,
   IconUser,
-  IconKey,
   IconZap,
-  IconChevronRight,
-  IconBell,
-  IconShieldCheck
+  IconShieldCheck,
 } from './Icons';
 
-// ─── DESIGN TOKENS ───────────────────────────────────────────────────────────
-const C = {
-  bg:        '#0d0d12',
-  surface:   '#13121a',
-  surface2:  '#1a1925',
-  border:    '#2a2840',
-  border2:   '#1f1e2e',
-  muted:     '#6b6887',
-  subtle:    '#3d3b52',
-  text:      '#e8e6f0',
-  textDim:   '#9896b0',
-  purple:    '#7c5af0',
-  purpleGlow:'rgba(124,90,240,0.18)',
-  green:     '#22d87a',
-  greenGlow: 'rgba(34,216,122,0.14)',
-  cyan:      '#22c7e8',
-  cyanGlow:  'rgba(34,199,232,0.14)',
-  violet:    '#b36ef5',
-  gold:      '#f0b429',
-  red:       '#f55050',
-};
-
 const MAIN_NAV = [
-  { path: '/dashboard',  label: 'Overview',         icon: <IconDashboard size={16} /> },
-  { path: '/scan',       label: 'Contract Scanner', icon: <IconSearch size={16} /> },
-  { path: '/mint',       label: 'Direct Mint',      icon: <IconBolt size={16} /> },
-  { path: '/schedule',   label: 'Drop Scheduler',   icon: <IconClock size={16} /> },
-  { path: '/schedules',  label: 'Schedules',        icon: <IconList size={16} /> },
-  { path: '/copymint',   label: 'Copy-Mint Radar',  icon: <IconRadar size={16} /> },
-  { path: '/wallet',     label: 'Wallet Vault',     icon: <IconWallet size={16} /> },
+  { path: '/dashboard', label: 'Overview',       icon: <IconDashboard size={16} /> },
+  { path: '/scan',      label: 'Contract Scanner', icon: <IconSearch size={16} /> },
+  { path: '/mint',      label: 'Direct Mint',    icon: <IconBolt size={16} /> },
+  { path: '/schedule',  label: 'Drop Scheduler', icon: <IconClock size={16} /> },
+  { path: '/schedules', label: 'Schedules',      icon: <IconList size={16} /> },
+  { path: '/wallet',    label: 'Connected Wallet', icon: <IconWallet size={16} /> },
+];
+
+const SOON_NAV = [
+  { path: '/copymint', label: 'Copy-Mint Radar', icon: <IconRadar size={16} /> },
 ];
 
 const TOOLS_NAV = [
-  { path: '/setup',          label: 'Setup Hub',      icon: <IconZap size={16} />,      accent: C.green  },
-  { path: '/telegram-guide', label: 'Telegram Bot',   icon: <IconTelegram size={16} />, accent: C.cyan   },
-  { path: '/terminal-guide', label: 'Terminal CLI',   icon: <IconTerminal size={16} />, accent: C.violet },
-  { path: '/profile',        label: 'Profile & Key',  icon: <IconUser size={16} />,     accent: C.purple },
+  { path: '/setup',          label: 'Setup Hub',    icon: <IconZap size={16} /> },
+  { path: '/telegram-guide', label: 'Telegram Bot', icon: <IconTelegram size={16} /> },
+  { path: '/terminal-guide', label: 'Terminal CLI', icon: <IconTerminal size={16} /> },
+  { path: '/profile',        label: 'Profile & Key', icon: <IconUser size={16} /> },
 ];
+
+const CHAIN_LABELS: Record<string, string> = {
+  robinhood: 'Robinhood · 4663',
+  ink: 'Ink L2 · 57073',
+  solana: 'Solana SVM',
+};
 
 export function Layout() {
   const navigate = useNavigate();
-  const [apiOk, setApiOk] = useState(false);
+  const { signOut } = useAuth();
+  const [health, setHealth] = useState<HealthResponse | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchFocused, setSearchFocused] = useState(false);
-  const activationCode = getUserActivationCode();
-  const shortCode = activationCode.slice(0, 14) + '…';
+  const searchRef = useRef<HTMLInputElement>(null);
+  const user = getStoredUser();
+  const code = getActivationCode();
+  const userName = user?.name || (user?.email ? user.email.split('@')[0] : 'Guest');
 
   useEffect(() => {
-    const hasSession = Boolean(localStorage.getItem('mintobaby_session'));
-    const hasPaidOrActivated = Boolean(localStorage.getItem('mintobaby_subscription')) || Boolean(localStorage.getItem('mintobaby_user_activation_code'));
-
-    if (!hasSession) {
+    if (!hasSession()) {
       navigate('/login', { replace: true });
-    } else if (!hasPaidOrActivated) {
+    } else if (!hasUnlocked()) {
       navigate('/subscribe', { replace: true });
     }
   }, [navigate]);
 
   useEffect(() => {
-    api.health().then(() => setApiOk(true)).catch(() => setApiOk(false));
-    const id = setInterval(() => {
-      api.health().then(() => setApiOk(true)).catch(() => setApiOk(false));
-    }, 15000);
-    return () => clearInterval(id);
+    let alive = true;
+    const ping = () => api.health().then(h => { if (alive) setHealth(h); }).catch(() => { if (alive) setHealth(null); });
+    ping();
+    const id = setInterval(ping, 20000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim().startsWith('0x')) {
-      navigate('/scan', { state: { contract: searchQuery.trim() } });
+    const q = searchQuery.trim();
+    if (q.startsWith('0x') && q.length >= 40) {
+      navigate('/scan', { state: { contract: q } });
     }
   };
 
+  const handleLogout = () => {
+    signOut();
+    localStorage.removeItem('mintobaby_subscription');
+    localStorage.removeItem('mintobaby_user_activation_code');
+    navigate('/login', { replace: true });
+  };
+
+  const online = health?.status === 'ok';
+
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      minHeight: '100vh',
-      background: C.bg,
-      color: C.text,
-      fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
-      fontSize: 14,
-    }}>
-
-      {/* ══════════════════════════════════════════
-          TOP NAV BAR
-      ══════════════════════════════════════════ */}
-      <header style={{
-        height: 56,
-        background: C.surface,
-        borderBottom: `1px solid ${C.border}`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 20px',
-        position: 'sticky',
-        top: 0,
-        zIndex: 200,
-        flexShrink: 0,
-      }}>
-
-        {/* LEFT: Logo + Search */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
-          {/* Brand */}
+    <div className="mb-console">
+      <header className="mb-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
           <button
             onClick={() => navigate('/dashboard')}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              background: 'none', border: 'none', cursor: 'pointer',
-              padding: '0 16px 0 0',
-              marginRight: 4,
-              borderRight: `1px solid ${C.border}`,
-            }}
+            style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
           >
-            <MintoLogo size={28} />
-            <span style={{ fontSize: 15, fontWeight: 700, color: C.text, letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>
+            <MintoLogo size={26} />
+            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--mb-text)', letterSpacing: '-0.01em', fontFamily: 'var(--mb-font-head)' }}>
               MintoBaby
             </span>
           </button>
 
-          {/* Search bar */}
-          <form onSubmit={handleSearch} style={{ marginLeft: 16 }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              background: searchFocused ? C.surface2 : C.bg,
-              border: `1px solid ${searchFocused ? C.purple : C.border}`,
-              borderRadius: 8,
-              padding: '7px 12px',
-              width: 240,
-              transition: 'all 0.15s ease',
-              boxShadow: searchFocused ? `0 0 0 3px ${C.purpleGlow}` : 'none',
-            }}>
-              <IconSearch size={13} color={C.muted} />
+          <form onSubmit={handleSearch} className="mb-search" style={{ marginLeft: 8 }}>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <span style={{ position: 'absolute', left: 11, pointerEvents: 'none' }}>
+                <IconSearch size={13} color="var(--mb-muted)" />
+              </span>
               <input
-                type="text"
-                placeholder="Search 0x contract..."
+                ref={searchRef}
+                className="mb-input"
+                style={{ width: 250, paddingLeft: 34, paddingRight: 46, background: 'var(--mb-inset)' }}
+                placeholder="Search 0x contract…"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                onFocus={() => setSearchFocused(true)}
-                onBlur={() => setSearchFocused(false)}
-                style={{
-                  background: 'transparent', border: 'none', outline: 'none',
-                  color: C.text, fontSize: 13, width: '100%', lineHeight: 1,
-                }}
               />
               <kbd style={{
-                background: C.surface2, border: `1px solid ${C.border}`,
-                borderRadius: 4, padding: '1px 5px', fontSize: 10,
-                color: C.muted, fontFamily: 'inherit', whiteSpace: 'nowrap',
-              }}>⌘K</kbd>
+                position: 'absolute', right: 10, background: 'var(--mb-raised)',
+                border: '1px solid var(--mb-border)', borderRadius: 4, padding: '1px 5px',
+                fontSize: 10, color: 'var(--mb-muted)',
+              }}>Ctrl K</kbd>
             </div>
           </form>
         </div>
 
-        {/* CENTER: Network status pills */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {[
-            { label: 'Robinhood · 4663', dot: C.green },
-            { label: 'Ink L2 · 57073',  dot: C.cyan  },
-            { label: 'Solana SVM',       dot: C.violet },
-          ].map(n => (
-            <div key={n.label} style={{
-              display: 'flex', alignItems: 'center', gap: 5,
-              background: C.surface2, border: `1px solid ${C.border}`,
-              borderRadius: 6, padding: '4px 10px', fontSize: 11, color: C.textDim, fontWeight: 500,
-            }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: n.dot, display: 'inline-block', flexShrink: 0 }} />
-              {n.label}
-            </div>
-          ))}
-        </div>
-
-        {/* RIGHT: API status + profile */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-
-          {/* API health badge */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            background: apiOk ? C.greenGlow : 'rgba(245,80,80,0.1)',
-            border: `1px solid ${apiOk ? 'rgba(34,216,122,0.3)' : 'rgba(245,80,80,0.3)'}`,
-            borderRadius: 6, padding: '5px 10px', fontSize: 11, fontWeight: 600,
-            color: apiOk ? C.green : C.red,
-          }}>
-            <span style={{
-              width: 6, height: 6, borderRadius: '50%',
-              background: apiOk ? C.green : C.red,
-              boxShadow: apiOk ? `0 0 8px ${C.green}` : 'none',
-              display: 'inline-block', flexShrink: 0,
-            }} />
-            {apiOk ? 'Live' : 'Offline'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className={`mb-badge ${online ? 'mb-badge-green' : 'mb-badge-red'}`} style={{ padding: '5px 11px' }}>
+            <span className="mb-dot" style={{ background: online ? 'var(--mb-green)' : 'var(--mb-red)' }} />
+            {online ? 'Engine Live' : 'Engine Offline'}
           </div>
 
-          {/* Notifications placeholder */}
-          <button style={{
-            background: 'none', border: `1px solid ${C.border}`,
-            borderRadius: 6, padding: '5px 8px', cursor: 'pointer',
-            color: C.muted, display: 'flex', alignItems: 'center',
-          }}>
-            <IconBell size={15} />
-          </button>
-
-          {/* Profile chip */}
           <button
             onClick={() => navigate('/profile')}
             style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              background: C.surface2, border: `1px solid ${C.border}`,
-              borderRadius: 8, padding: '5px 10px', cursor: 'pointer',
-              transition: 'border-color 0.15s',
+              display: 'flex', alignItems: 'center', gap: 9, background: 'var(--mb-raised)',
+              border: '1px solid var(--mb-border)', borderRadius: 9, padding: '5px 11px', cursor: 'pointer',
             }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = C.purple; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; }}
           >
-            <div style={{
-              width: 22, height: 22, borderRadius: '50%',
-              background: `linear-gradient(135deg, ${C.purple}, ${C.violet})`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0,
-            }}>
-              <IconUser size={12} color="#fff" />
-            </div>
+            {user?.picture
+              ? <img src={user.picture} alt="" style={{ width: 22, height: 22, borderRadius: '50%' }} />
+              : (
+                <div style={{
+                  width: 22, height: 22, borderRadius: '50%',
+                  background: 'linear-gradient(135deg, var(--mb-violet), #b36ef5)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <IconUser size={12} color="#fff" />
+                </div>
+              )}
             <div style={{ textAlign: 'left' }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: C.text, lineHeight: 1.2 }}>My Account</div>
-              <div style={{ fontSize: 10, color: C.muted, fontFamily: 'monospace', lineHeight: 1 }}>{shortCode}</div>
+              <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--mb-text)', lineHeight: 1.25 }}>{userName}</div>
+              <div style={{ fontSize: 10, color: 'var(--mb-muted)', fontFamily: 'var(--mb-font-mono)', lineHeight: 1 }}>
+                {code ? code.slice(0, 14) + '…' : 'no key issued'}
+              </div>
             </div>
           </button>
         </div>
       </header>
 
-      {/* ══════════════════════════════════════════
-          BODY: SIDEBAR + CONTENT
-      ══════════════════════════════════════════ */}
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-
-        {/* ─── SIDEBAR ─────────────────────────── */}
-        <aside style={{
-          width: 220,
-          background: C.surface,
-          borderRight: `1px solid ${C.border}`,
-          display: 'flex', flexDirection: 'column',
-          flexShrink: 0, overflowY: 'auto',
-        }}>
-
-          {/* Main nav */}
-          <nav style={{ padding: '16px 8px 0', flex: 1 }}>
-            <div style={{ padding: '0 8px 8px', fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-              Operations
+      <div className="mb-body">
+        <aside className="mb-sidebar">
+          <nav style={{ flex: 1 }}>
+            <div className="mb-nav-group">
+              <div className="mb-nav-title">Operations</div>
+              {MAIN_NAV.map(({ path, label, icon }) => (
+                <NavLink key={path} to={path} end={path === '/dashboard'} className={({ isActive }) => `mb-nav-item${isActive ? ' active' : ''}`}>
+                  {icon}
+                  <span>{label}</span>
+                </NavLink>
+              ))}
             </div>
-            {MAIN_NAV.map(({ path, label, icon }) => (
-              <NavLink
-                key={path}
-                to={path}
-                end={path === '/dashboard'}
-                style={({ isActive }) => ({
-                  display: 'flex', alignItems: 'center', gap: 9,
-                  padding: '8px 10px', borderRadius: 7, marginBottom: 1,
-                  color: isActive ? C.text : C.textDim,
-                  background: isActive ? C.surface2 : 'transparent',
-                  textDecoration: 'none', fontSize: 13, fontWeight: isActive ? 600 : 400,
-                  transition: 'all 0.1s',
-                  borderLeft: isActive ? `2px solid ${C.purple}` : '2px solid transparent',
-                })}
-              >
-                {icon}
-                <span>{label}</span>
-              </NavLink>
-            ))}
 
-            <div style={{ padding: '16px 8px 8px', fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 8 }}>
-              Tools & Setup
+            <div className="mb-nav-group">
+              <div className="mb-nav-title">In Development</div>
+              {SOON_NAV.map(({ path, label, icon }) => (
+                <NavLink key={path} to={path} className={({ isActive }) => `mb-nav-item${isActive ? ' active' : ''}`}>
+                  {icon}
+                  <span style={{ flex: 1 }}>{label}</span>
+                  <span className="mb-badge mb-badge-gold" style={{ fontSize: 9, padding: '1px 6px' }}>soon</span>
+                </NavLink>
+              ))}
             </div>
-            {TOOLS_NAV.map(({ path, label, icon, accent }) => (
-              <NavLink
-                key={path}
-                to={path}
-                style={({ isActive }) => ({
-                  display: 'flex', alignItems: 'center', gap: 9,
-                  padding: '8px 10px', borderRadius: 7, marginBottom: 1,
-                  color: isActive ? C.text : C.textDim,
-                  background: isActive ? C.surface2 : 'transparent',
-                  textDecoration: 'none', fontSize: 13, fontWeight: isActive ? 600 : 400,
-                  transition: 'all 0.1s',
-                  borderLeft: isActive ? `2px solid ${accent}` : '2px solid transparent',
-                })}
-              >
-                {icon}
-                <span>{label}</span>
-              </NavLink>
-            ))}
+
+            <div className="mb-nav-group">
+              <div className="mb-nav-title">Tools & Setup</div>
+              {TOOLS_NAV.map(({ path, label, icon }) => (
+                <NavLink key={path} to={path} className={({ isActive }) => `mb-nav-item${isActive ? ' active' : ''}`}>
+                  {icon}
+                  <span>{label}</span>
+                </NavLink>
+              ))}
+            </div>
           </nav>
 
-          {/* Bottom: back to site */}
-          <div style={{ padding: '12px 8px 16px', borderTop: `1px solid ${C.border}` }}>
-            <NavLink
-              to="/"
-              style={{
-                display: 'flex', alignItems: 'center', gap: 9,
-                padding: '8px 10px', borderRadius: 7,
-                color: C.muted, textDecoration: 'none', fontSize: 13,
-                transition: 'color 0.1s',
-              }}
-            >
+          <div style={{ borderTop: '1px solid var(--mb-border)', paddingTop: 10 }}>
+            {online && health && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, padding: '0 10px 12px' }}>
+                {health.networks.map(n => (
+                  <span key={n} className="mb-badge mb-badge-gray" style={{ fontSize: 9.5 }}>
+                    <span className="mb-dot" style={{ background: 'var(--mb-green)' }} />
+                    {CHAIN_LABELS[n] ?? n}
+                  </span>
+                ))}
+              </div>
+            )}
+            <NavLink to="/" className="mb-nav-item">
               <IconGlobe size={16} />
-              <span>Back to site</span>
+              <span style={{ flex: 1 }}>Back to site</span>
             </NavLink>
+            <button onClick={handleLogout} className="mb-nav-item" style={{ width: '100%', background: 'none', cursor: 'pointer', border: 'none', font: 'inherit' }}>
+              <IconShieldCheck size={16} />
+              <span>Sign out</span>
+            </button>
           </div>
         </aside>
 
-        {/* ─── MAIN CONTENT ─────────────────────── */}
-        <main style={{
-          flex: 1, overflowY: 'auto', overflowX: 'hidden',
-          padding: '32px 36px',
-          background: C.bg,
-        }}>
+        <main className="mb-main">
           <Outlet />
         </main>
       </div>

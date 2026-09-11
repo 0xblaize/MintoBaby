@@ -48,18 +48,18 @@ function MintoLogo({ size = 32 }: { size?: number }) {
 
 const BOT_VECTORS_DATA: ProjectData[] = [
   {
-    id: 'mempool-sniper',
-    name: 'Robinhood & EVM Mempool Sniper',
+    id: 'auto-mint-engine',
+    name: 'Multi-Chain Auto-Mint Engine',
     category: 'Robinhood Chain',
     year: '2026',
     client: 'MINTOBABY Core',
-    headline: 'Sub-10ms Pending Transaction Interception & Automated Mint Execution',
-    description: 'The Mempool Sniper continuously scans pending transaction pools on Robinhood Chain, Ink L2, and Solana. When a collection deployment or mint transaction is broadcast, MINTOBABY calculates gas priority and executes the mint within 10ms.',
-    deliverables: ['Mempool Parser', 'Gas Priority Bidding', 'Pending Tx Interceptor', 'Multi-RPC Router'],
+    headline: 'Phase-Open Detection & Verified Automated Mint Execution',
+    description: 'The engine inspects collection phases on Robinhood Chain, Ink L2, and Solana as they change. When a supported public phase opens, every candidate transaction is simulated from the executing wallet first, then broadcast with priority gas and tracked to a confirmed receipt.',
+    deliverables: ['Phase Inspection', 'Gas Priority Bidding', 'Wallet Simulation', 'Multi-RPC Router'],
     metrics: [
-      { label: 'Latency', value: '10ms' },
-      { label: 'Mempool Parsing', value: '1,000 tx/sec' },
-      { label: 'Success Rate', value: '99.4%' }
+      { label: 'Preflight', value: 'Wallet-Simulated' },
+      { label: 'Trigger', value: 'Block-Accurate' },
+      { label: 'Unknown Phases', value: 'Always Refused' }
     ],
     heroGradient: 'linear-gradient(135deg, #1c1438 0%, #3e1b96 50%, #6b3ce8 100%)'
   },
@@ -85,29 +85,29 @@ const BOT_VECTORS_DATA: ProjectData[] = [
     category: 'Ink L2 & Solana',
     year: '2026',
     client: 'MINTOBABY Alpha',
-    headline: 'Real-Time Whale Tracking & Instantaneous Mirror Transactions',
-    description: 'CopyMint tracks top-performing Web3 alpha traders and whale wallets. The moment a target wallet submits a mint or purchase transaction, MINTOBABY mirrors the exact call data with custom gas slippage protection.',
+    headline: 'Real-Time Whale Tracking — In Development',
+    description: 'CopyMint will track selected alpha wallets and mirror qualified mints through dedicated, safety-tested adapters per network. The radar is not wired up yet and is intentionally unavailable until every supported adapter passes preflight simulation.',
     deliverables: ['Target Wallet Tracker', 'Call Data Mirroring', 'Slippage Protection', 'Solana & EVM Support'],
     metrics: [
-      { label: 'Tracking Delay', value: '< 5ms' },
+      { label: 'Status', value: 'Coming Soon' },
       { label: 'Alpha Target List', value: 'Unlimited' },
-      { label: 'Profit Multiplier', value: '4.2x Avg' }
+      { label: 'Profit Multiplier', value: 'Not Advertised' }
     ],
     heroGradient: 'linear-gradient(135deg, #1a0f26 0%, #341254 50%, #6b3ce8 100%)'
   },
   {
     id: 'automint-contract',
-    name: 'AutoMintExecutor.sol Gas Engine',
-    category: 'Solana & EVM',
+    name: 'Hardened EVM Execution Layer',
+    category: 'Robinhood & Ink L2',
     year: '2026',
-    client: 'MINTOBABY Smart Contract',
-    headline: 'Custom Assembly-Optimized EVM Contract for Competitive Public Mints',
-    description: 'Custom Yul/assembly smart contract bypassing standard ERC-721 overhead. Directly calls mintTo and publicMintTo functions with optimized gas packing, beating standard wallet transactions every block.',
-    deliverables: ['AutoMintExecutor.sol', 'Yul Assembly Code', 'PublicMintTo ABI', 'Batch Minting Helper'],
+    client: 'MINTOBABY Engine Internals',
+    headline: 'Simulation-Gated Mint Execution with Full Receipt Tracking',
+    description: 'Every automated mint is built from freshly inspected phase data, simulated from the executing wallet before broadcast, sent exactly once, and tracked to a confirmed receipt. Unknown phases, unreadable prices, or failing simulations are refused outright.',
+    deliverables: ['Wallet-Side Simulation', 'Phase Verification', 'One-Shot Broadcast', 'Receipt Confirmation'],
     metrics: [
-      { label: 'Gas Saved', value: '-38%' },
-      { label: 'Contract Bytecode', value: '1.9 KB' },
-      { label: 'Block Speed', value: 'Block 0 Entry' }
+      { label: 'Broadcast Retry', value: 'Never After Hash' },
+      { label: 'Discovery Cache', value: 'None — Fresh Scans' },
+      { label: 'Notifications', value: 'Hash + Receipt' }
     ],
     heroGradient: 'linear-gradient(135deg, #241219 0%, #4a1931 50%, #6b3ce8 100%)'
   }
@@ -154,7 +154,7 @@ export default function MintoBabyStudio() {
           zIndex: 100,
           background: scrolled ? 'rgba(10, 10, 15, 0.94)' : 'rgba(10, 10, 15, 0.8)',
           backdropFilter: 'blur(14px)',
-          borderBottom: '1px solid rgba(250, 8%, 20%, 0.6)',
+          borderBottom: '1px solid rgba(107, 60, 232, 0.6)',
           transition: 'all 0.3s ease',
         }}
       >
@@ -377,7 +377,7 @@ export default function MintoBabyStudio() {
             }}
           >
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#00ff88', display: 'inline-block' }} />
-            <span>MINTOBABY BOT · 10MS MEMPOOL EXECUTOR</span>
+            <span>MINTOBABY BOT · BLOCK-ACCURATE AUTO-MINT ENGINE</span>
           </div>
 
           {/* Headline H1 */}
@@ -416,7 +416,7 @@ export default function MintoBabyStudio() {
               animation: 'fadeUp 0.6s ease forwards 0.3s',
             }}
           >
-            Automated block-0 mempool sniping, 1-click wallet key generation, and CopyMint whale tracking across Robinhood Chain, Ink L2, and Solana.
+            Automated block-accurate mints, live contract scanning, and one secure workflow across Web, Telegram, and Terminal — on Robinhood Chain, Ink L2, and Solana.
           </p>
 
           {/* CTAs */}
@@ -580,10 +580,10 @@ export default function MintoBabyStudio() {
               <div style={{ width: 22, height: 22, borderRadius: 6, background: '#6b3ce8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <IconLayers size={12} color="#fff" />
               </div>
-              <span style={{ fontSize: 9, color: '#6b3ce8', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 }}>WHALE MIRROR</span>
+              <span style={{ fontSize: 9, color: '#f0b429', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 }}>WHALE MIRROR · SOON</span>
             </div>
             <div style={{ background: '#0a0a0f', borderRadius: 6, height: 46, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
-              <span className="font-heading" style={{ fontSize: 11, fontWeight: 700, color: '#fff' }}>CopyMint Engine 5ms</span>
+              <span className="font-heading" style={{ fontSize: 11, fontWeight: 700, color: '#fff' }}>CopyMint Engine · In Dev</span>
             </div>
             <div className="font-heading" style={{ fontSize: 12, fontWeight: 700, color: '#f5f5f5' }}>Whale Tracking</div>
           </div>
@@ -591,7 +591,7 @@ export default function MintoBabyStudio() {
       </section>
 
       {/* ── 3. BOT EXECUTION VECTORS ── */}
-      <section id="bot-vectors" style={{ padding: '100px 5vw', background: 'rgba(10, 10, 15, 0.55)', borderTop: '1px solid rgba(250, 8%, 20%, 0.5)' }}>
+      <section id="bot-vectors" style={{ padding: '100px 5vw', background: 'rgba(10, 10, 15, 0.55)', borderTop: '1px solid rgba(107, 60, 232, 0.5)' }}>
         <div style={{ maxWidth: '1600px', margin: '0 auto' }}>
           
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '60px' }}>
@@ -700,7 +700,7 @@ export default function MintoBabyStudio() {
       </section>
 
       {/* ── 3.5 THREE ECOSYSTEM INTERFACES (TERMINAL, WEB APP, TG BOT) ── */}
-      <section id="interfaces" style={{ padding: '100px 5vw', background: 'rgba(10, 10, 15, 0.4)', borderTop: '1px solid rgba(250, 8%, 20%, 0.5)' }}>
+      <section id="interfaces" style={{ padding: '100px 5vw', background: 'rgba(10, 10, 15, 0.4)', borderTop: '1px solid rgba(107, 60, 232, 0.5)' }}>
         <div style={{ maxWidth: '1600px', margin: '0 auto' }}>
           
           <div style={{ marginBottom: '60px' }}>
@@ -720,7 +720,7 @@ export default function MintoBabyStudio() {
               Three Ways To Access MINTOBABY
             </h2>
             <p style={{ fontFamily: "'Inter', sans-serif", color: '#827e99', fontSize: 16, marginTop: 16, maxWidth: '750px', fontWeight: 300 }}>
-              Deploy MINTOBABY across three powerful interfaces tailored to your strategy—ranked by execution speed and response latency.
+              Deploy MINTOBABY across three powerful interfaces — each tailored to a different way of operating.
             </p>
           </div>
 
@@ -742,7 +742,7 @@ export default function MintoBabyStudio() {
               }}
             >
               <div style={{ position: 'absolute', top: 16, right: 16, background: '#6b3ce8', color: '#fff', fontSize: 10, fontWeight: 800, padding: '4px 12px', borderRadius: 12, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                RANK 01 · FASTEST SPEED
+                MODE 01 · FULL AUTOMATION
               </div>
 
               <div>
@@ -751,7 +751,7 @@ export default function MintoBabyStudio() {
                 </div>
 
                 <div style={{ fontSize: 11, fontWeight: 700, color: '#00ff88', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8 }}>
-                  SPEED RANK 01 · CLI TERMINAL
+                  MODE 01 · CLI TERMINAL
                 </div>
 
                 <h3 className="font-heading" style={{ fontSize: 26, fontWeight: 700, color: '#ffffff', marginBottom: 16 }}>
@@ -759,13 +759,13 @@ export default function MintoBabyStudio() {
                 </h3>
 
                 <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 14, color: '#827e99', lineHeight: 1.65, fontWeight: 300, marginBottom: 24 }}>
-                  The absolute fastest execution mode. Direct low-level RPC WebSocket integration bypassing browser DOM overhead. Connects directly to custom Yul Assembly <code style={{ color: '#00ff88', background: 'rgba(0,255,136,0.1)', padding: '2px 6px', borderRadius: 4 }}>AutoMintExecutor.sol</code> for guaranteed block-0 mempool entry.
+                  The most direct control surface for the engine. Full RPC integration with wallet-side preflight simulation, priority gas bidding, and a headless daemon mode that keeps armed schedules running unattended.
                 </p>
               </div>
 
               <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 12, color: '#827e99' }}>Execution Latency</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#00ff88' }}>&lt; 10ms (Fastest Response)</span>
+                <span style={{ fontSize: 12, color: '#827e99' }}>Best For</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#00ff88' }}>Power Users · Automation</span>
               </div>
             </div>
 
@@ -773,7 +773,7 @@ export default function MintoBabyStudio() {
             <div
               style={{
                 background: 'rgba(20, 19, 26, 0.85)',
-                border: '1px solid rgba(250, 8%, 20%, 0.6)',
+                border: '1px solid rgba(107, 60, 232, 0.6)',
                 borderRadius: '20px',
                 padding: '36px',
                 position: 'relative',
@@ -793,7 +793,7 @@ export default function MintoBabyStudio() {
                 </div>
 
                 <div style={{ fontSize: 11, fontWeight: 700, color: '#6b3ce8', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8 }}>
-                  SPEED RANK 02 · WEB STUDIO
+                  MODE 02 · WEB STUDIO
                 </div>
 
                 <h3 className="font-heading" style={{ fontSize: 26, fontWeight: 700, color: '#ffffff', marginBottom: 16 }}>
@@ -801,13 +801,13 @@ export default function MintoBabyStudio() {
                 </h3>
 
                 <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 14, color: '#827e99', lineHeight: 1.65, fontWeight: 300, marginBottom: 24 }}>
-                  Interactive Web3 application suite. Provides visual control for CopyMint whale wallet mirroring, 1-click sniper wallet generator/importer, automated scheduled mints, and live multi-chain collection scanner.
+                  Interactive Web3 application suite. Visual contract scanner with live phase and price inspection, schedule monitoring, external-wallet connection via WalletConnect, and setup flows for the Telegram bot and Terminal CLI. CopyMint whale-mirroring arrives once its adapters are safety-tested.
                 </p>
               </div>
 
               <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 12, color: '#827e99' }}>Execution Latency</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#ffffff' }}>~ 25ms (Next Fastest)</span>
+                <span style={{ fontSize: 12, color: '#827e99' }}>Best For</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#ffffff' }}>Visual Review · Control</span>
               </div>
             </div>
 
@@ -815,7 +815,7 @@ export default function MintoBabyStudio() {
             <div
               style={{
                 background: 'rgba(20, 19, 26, 0.85)',
-                border: '1px solid rgba(250, 8%, 20%, 0.6)',
+                border: '1px solid rgba(107, 60, 232, 0.6)',
                 borderRadius: '20px',
                 padding: '36px',
                 position: 'relative',
@@ -826,7 +826,7 @@ export default function MintoBabyStudio() {
               }}
             >
               <div style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(0, 136, 204, 0.2)', color: '#0088cc', border: '1px solid rgba(0, 136, 204, 0.4)', fontSize: 10, fontWeight: 700, padding: '4px 12px', borderRadius: 12, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                RANK 03 · MOBILE SNIPING
+                MODE 03 · MOBILE CONTROL
               </div>
 
               <div>
@@ -835,7 +835,7 @@ export default function MintoBabyStudio() {
                 </div>
 
                 <div style={{ fontSize: 11, fontWeight: 700, color: '#0088cc', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8 }}>
-                  SPEED RANK 03 · TELEGRAM BOT
+                  MODE 03 · TELEGRAM BOT
                 </div>
 
                 <h3 className="font-heading" style={{ fontSize: 26, fontWeight: 700, color: '#ffffff', marginBottom: 16 }}>
@@ -848,7 +848,7 @@ export default function MintoBabyStudio() {
               </div>
 
               <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 12, color: '#827e99' }}>Execution Latency</span>
+                <span style={{ fontSize: 12, color: '#827e99' }}>Best For</span>
                 <span style={{ fontSize: 13, fontWeight: 700, color: '#0088cc' }}>Mobile Instant Chat</span>
               </div>
             </div>
@@ -858,7 +858,7 @@ export default function MintoBabyStudio() {
       </section>
 
       {/* ── 4. PRICING & PAID SUBSCRIPTIONS SECTION ── */}
-      <section id="pricing" style={{ padding: '100px 5vw', background: 'rgba(14, 13, 20, 0.55)', borderTop: '1px solid rgba(250, 8%, 20%, 0.6)' }}>
+      <section id="pricing" style={{ padding: '100px 5vw', background: 'rgba(14, 13, 20, 0.55)', borderTop: '1px solid rgba(107, 60, 232, 0.6)' }}>
         <div style={{ maxWidth: '1600px', margin: '0 auto' }}>
           
           <div style={{ textAlign: 'center', marginBottom: '60px' }}>
@@ -919,7 +919,7 @@ export default function MintoBabyStudio() {
             <div
               style={{
                 background: '#14131a',
-                border: '1px solid rgba(250, 8%, 20%, 0.8)',
+                border: '1px solid rgba(107, 60, 232, 0.8)',
                 borderRadius: '20px',
                 padding: '44px 36px',
                 display: 'flex',
@@ -936,11 +936,11 @@ export default function MintoBabyStudio() {
                   ${pricingCycle === 'weekly' ? '10' : pricingCycle === 'monthly' ? '49' : '350'} <span style={{ fontSize: 16, color: '#827e99', fontWeight: 400 }}>/ {pricingCycle === 'weekly' ? 'week' : pricingCycle === 'monthly' ? 'month' : 'year'}</span>
                 </div>
                 <p style={{ color: '#827e99', fontSize: 14, marginBottom: 24 }}>
-                  Essential wallet sniper &amp; monitoring engine for active web3 traders.
+                  Essential mint automation &amp; monitoring engine for active web3 traders.
                 </p>
 
                 <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  {['5 Active Wallet Snipers', 'Robinhood, Solana & Ink L2 Access', '100ms Execution Latency', 'Telegram & Discord Alerts', 'Standard Support'].map((feat, i) => (
+                  {['2 Execution Wallets', 'Robinhood & Ink L2 Access', 'Live Phase & Price Alerts', 'Telegram Broadcast Alerts', 'Standard Support'].map((feat, i) => (
                     <li key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#e0e0e0' }}>
                       <IconCheck size={16} color="#6b3ce8" />
                       <span>{feat}</span>
@@ -994,11 +994,11 @@ export default function MintoBabyStudio() {
                   ${pricingCycle === 'weekly' ? '25' : pricingCycle === 'monthly' ? '100' : '750'} <span style={{ fontSize: 16, color: '#827e99', fontWeight: 400 }}>/ {pricingCycle === 'weekly' ? 'week' : pricingCycle === 'monthly' ? 'month' : 'year'}</span>
                 </div>
                 <p style={{ color: '#827e99', fontSize: 14, marginBottom: 24 }}>
-                  Full multi-chain auto-mint matrix executor with 10ms priority execution.
+                  Full multi-chain auto-mint engine with priority gas handling and instant receipt alerts.
                 </p>
 
                 <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  {['Unlimited Wallet Snipers', 'All Chains (Robinhood, Solana, Ink L2)', '10ms Auto-Mint Matrix Executor', '1-Click Generated & Imported Wallets', 'VIP Copy Trading & CopyMint', '24/7 Priority Support'].map((feat, i) => (
+                  {['Multiple Execution Wallets', 'All Chains (Robinhood, Ink L2, Solana*)', 'Priority-Gas Auto-Mint Engine', '1-Click Generated & Imported Wallets (CLI/Bot)', 'Copy-Mint Radar — Coming Soon', '24/7 Priority Support'].map((feat, i) => (
                     <li key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#ffffff', fontWeight: 500 }}>
                       <IconCheck size={16} color="#00ff88" />
                       <span>{feat}</span>
@@ -1031,7 +1031,7 @@ export default function MintoBabyStudio() {
             <div
               style={{
                 background: '#14131a',
-                border: '1px solid rgba(250, 8%, 20%, 0.8)',
+                border: '1px solid rgba(107, 60, 232, 0.8)',
                 borderRadius: '20px',
                 padding: '44px 36px',
                 display: 'flex',
@@ -1085,7 +1085,7 @@ export default function MintoBabyStudio() {
       </section>
 
       {/* ── 5. BOT SERVICES SECTION ── */}
-      <section id="services" style={{ padding: '100px 5vw', background: 'rgba(10, 10, 15, 0.55)', borderTop: '1px solid rgba(250, 8%, 20%, 0.5)' }}>
+      <section id="services" style={{ padding: '100px 5vw', background: 'rgba(10, 10, 15, 0.55)', borderTop: '1px solid rgba(107, 60, 232, 0.5)' }}>
         <div style={{ maxWidth: '1600px', margin: '0 auto' }}>
           
           <div style={{ marginBottom: '60px' }}>
@@ -1105,7 +1105,7 @@ export default function MintoBabyStudio() {
               What MINTOBABY Bot Does
             </h2>
             <p style={{ color: '#827e99', fontSize: 16, fontWeight: 300, maxWidth: 540 }}>
-              End-to-end automated execution capabilities designed for high-frequency Web3 trading and minting.
+              End-to-end automated execution capabilities designed for competitive Web3 minting.
             </p>
           </div>
 
@@ -1116,11 +1116,11 @@ export default function MintoBabyStudio() {
               gap: '28px',
             }}
           >
-            {/* 1. Mempool Sniping */}
+            {/* 1. Phase Watching */}
             <div
               style={{
                 background: '#14131a',
-                border: '1px solid rgba(250, 8%, 20%, 0.7)',
+                border: '1px solid rgba(107, 60, 232, 0.7)',
                 borderRadius: '16px',
                 padding: '40px',
                 transition: 'all 0.25s ease',
@@ -1132,7 +1132,7 @@ export default function MintoBabyStudio() {
                 e.currentTarget.style.transform = 'translateY(-4px)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(250, 8%, 20%, 0.7)';
+                e.currentTarget.style.borderColor = 'rgba(107, 60, 232, 0.7)';
                 e.currentTarget.style.boxShadow = 'none';
                 e.currentTarget.style.transform = 'none';
               }}
@@ -1141,13 +1141,13 @@ export default function MintoBabyStudio() {
                 <IconBolt size={28} />
               </div>
               <h3 className="font-heading" style={{ fontSize: 22, fontWeight: 700, color: '#fff', marginBottom: 10 }}>
-                Mempool Sniping
+                Live Phase Watching
               </h3>
               <p style={{ color: '#827e99', fontSize: 14, fontWeight: 300, lineHeight: 1.6, marginBottom: 20 }}>
-                Continuous 10ms mempool transaction monitoring across Robinhood Chain, Ink L2, and Solana.
+                Continuous on-chain inspection of collection phases, prices, and limits across Robinhood Chain, Ink L2, and Solana.
               </p>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {['Mempool', 'Robinhood', 'Ink L2', '10ms'].map((t) => (
+                {['Phase Watch', 'Robinhood', 'Ink L2', 'Real-Time'].map((t) => (
                   <span key={t} style={{ background: '#1c1b24', color: '#827e99', fontSize: 11, padding: '4px 10px', borderRadius: 4 }}>
                     {t}
                   </span>
@@ -1159,7 +1159,7 @@ export default function MintoBabyStudio() {
             <div
               style={{
                 background: '#14131a',
-                border: '1px solid rgba(250, 8%, 20%, 0.7)',
+                border: '1px solid rgba(107, 60, 232, 0.7)',
                 borderRadius: '16px',
                 padding: '40px',
                 transition: 'all 0.25s ease',
@@ -1171,7 +1171,7 @@ export default function MintoBabyStudio() {
                 e.currentTarget.style.transform = 'translateY(-4px)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(250, 8%, 20%, 0.7)';
+                e.currentTarget.style.borderColor = 'rgba(107, 60, 232, 0.7)';
                 e.currentTarget.style.boxShadow = 'none';
                 e.currentTarget.style.transform = 'none';
               }}
@@ -1198,7 +1198,7 @@ export default function MintoBabyStudio() {
             <div
               style={{
                 background: '#14131a',
-                border: '1px solid rgba(250, 8%, 20%, 0.7)',
+                border: '1px solid rgba(107, 60, 232, 0.7)',
                 borderRadius: '16px',
                 padding: '40px',
                 transition: 'all 0.25s ease',
@@ -1210,7 +1210,7 @@ export default function MintoBabyStudio() {
                 e.currentTarget.style.transform = 'translateY(-4px)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(250, 8%, 20%, 0.7)';
+                e.currentTarget.style.borderColor = 'rgba(107, 60, 232, 0.7)';
                 e.currentTarget.style.boxShadow = 'none';
                 e.currentTarget.style.transform = 'none';
               }}
@@ -1237,7 +1237,7 @@ export default function MintoBabyStudio() {
             <div
               style={{
                 background: '#14131a',
-                border: '1px solid rgba(250, 8%, 20%, 0.7)',
+                border: '1px solid rgba(107, 60, 232, 0.7)',
                 borderRadius: '16px',
                 padding: '40px',
                 transition: 'all 0.25s ease',
@@ -1249,7 +1249,7 @@ export default function MintoBabyStudio() {
                 e.currentTarget.style.transform = 'translateY(-4px)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(250, 8%, 20%, 0.7)';
+                e.currentTarget.style.borderColor = 'rgba(107, 60, 232, 0.7)';
                 e.currentTarget.style.boxShadow = 'none';
                 e.currentTarget.style.transform = 'none';
               }}
@@ -1258,13 +1258,13 @@ export default function MintoBabyStudio() {
                 <IconLayers size={28} />
               </div>
               <h3 className="font-heading" style={{ fontSize: 22, fontWeight: 700, color: '#fff', marginBottom: 10 }}>
-                CopyMint Mirroring
+                CopyMint Mirroring (Soon)
               </h3>
               <p style={{ color: '#827e99', fontSize: 14, fontWeight: 300, lineHeight: 1.6, marginBottom: 20 }}>
-                Whale wallet tracking engine mirroring top-performing Alpha wallets automatically.
+                Whale-wallet mirroring is being rebuilt on safety-tested adapters per network and will ship here when it is genuinely available.
               </p>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {['CopyMint', 'Whale Tracking', 'Auto Mirror', 'Multi-Wallet'].map((t) => (
+                {['In Development', 'Whale Tracking', 'Auto Mirror', 'Multi-Wallet'].map((t) => (
                   <span key={t} style={{ background: '#1c1b24', color: '#827e99', fontSize: 11, padding: '4px 10px', borderRadius: 4 }}>
                     {t}
                   </span>
@@ -1276,7 +1276,7 @@ export default function MintoBabyStudio() {
             <div
               style={{
                 background: '#14131a',
-                border: '1px solid rgba(250, 8%, 20%, 0.7)',
+                border: '1px solid rgba(107, 60, 232, 0.7)',
                 borderRadius: '16px',
                 padding: '40px',
                 transition: 'all 0.25s ease',
@@ -1288,7 +1288,7 @@ export default function MintoBabyStudio() {
                 e.currentTarget.style.transform = 'translateY(-4px)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(250, 8%, 20%, 0.7)';
+                e.currentTarget.style.borderColor = 'rgba(107, 60, 232, 0.7)';
                 e.currentTarget.style.boxShadow = 'none';
                 e.currentTarget.style.transform = 'none';
               }}
@@ -1315,7 +1315,7 @@ export default function MintoBabyStudio() {
             <div
               style={{
                 background: '#14131a',
-                border: '1px solid rgba(250, 8%, 20%, 0.7)',
+                border: '1px solid rgba(107, 60, 232, 0.7)',
                 borderRadius: '16px',
                 padding: '40px',
                 transition: 'all 0.25s ease',
@@ -1327,7 +1327,7 @@ export default function MintoBabyStudio() {
                 e.currentTarget.style.transform = 'translateY(-4px)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(250, 8%, 20%, 0.7)';
+                e.currentTarget.style.borderColor = 'rgba(107, 60, 232, 0.7)';
                 e.currentTarget.style.boxShadow = 'none';
                 e.currentTarget.style.transform = 'none';
               }}
@@ -1342,7 +1342,7 @@ export default function MintoBabyStudio() {
                 Redundant private RPC nodes across Robinhood Chain, Ink L2, and Solana for guaranteed delivery.
               </p>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {['RPC Router', 'Redundancy', 'Low Latency', 'Solana'].map((t) => (
+                {['RPC Router', 'Redundancy', 'Failover', 'Solana'].map((t) => (
                   <span key={t} style={{ background: '#1c1b24', color: '#827e99', fontSize: 11, padding: '4px 10px', borderRadius: 4 }}>
                     {t}
                   </span>
@@ -1354,7 +1354,7 @@ export default function MintoBabyStudio() {
       </section>
 
       {/* ── 6. HOW THE BOT WORKS SECTION ── */}
-      <section id="process" style={{ padding: '100px 5vw', background: 'rgba(10, 10, 15, 0.55)', borderTop: '1px solid rgba(250, 8%, 20%, 0.5)' }}>
+      <section id="process" style={{ padding: '100px 5vw', background: 'rgba(10, 10, 15, 0.55)', borderTop: '1px solid rgba(107, 60, 232, 0.5)' }}>
         <div style={{ maxWidth: '1600px', margin: '0 auto' }}>
           
           <div style={{ marginBottom: '60px' }}>
@@ -1379,8 +1379,8 @@ export default function MintoBabyStudio() {
             {[
               {
                 step: '01',
-                title: 'Mempool Scanning',
-                desc: 'Continuous real-time scanning of pending transaction pools across Robinhood Chain, Ink L2, and Solana.',
+                title: 'Fresh Contract Scanning',
+                desc: 'Fresh on-chain inspection of phases, prices, and per-wallet limits — no stale caches.',
               },
               {
                 step: '02',
@@ -1394,8 +1394,8 @@ export default function MintoBabyStudio() {
               },
               {
                 step: '04',
-                title: 'Sub-10ms Block 0 Execution',
-                desc: 'Direct execution via AutoMintExecutor.sol Yul assembly contract with guaranteed sub-10ms latency.',
+                title: 'Verified Broadcast & Receipt',
+                desc: 'Only phases that pass wallet-specific simulation are broadcast, then tracked to a confirmed receipt.',
               },
             ].map((p) => (
               <div
@@ -1403,7 +1403,7 @@ export default function MintoBabyStudio() {
                 style={{
                   position: 'relative',
                   background: '#14131a',
-                  border: '1px solid rgba(250, 8%, 20%, 0.6)',
+                  border: '1px solid rgba(107, 60, 232, 0.6)',
                   borderRadius: '16px',
                   padding: '40px 32px',
                   overflow: 'hidden',
@@ -1445,7 +1445,7 @@ export default function MintoBabyStudio() {
       </section>
 
       {/* ── 7. ABOUT SECTION ── */}
-      <section id="about" style={{ padding: '100px 5vw', background: 'rgba(10, 10, 15, 0.55)', borderTop: '1px solid rgba(250, 8%, 20%, 0.5)' }}>
+      <section id="about" style={{ padding: '100px 5vw', background: 'rgba(10, 10, 15, 0.55)', borderTop: '1px solid rgba(107, 60, 232, 0.5)' }}>
         <div style={{ maxWidth: '1600px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: '60px', alignItems: 'center' }} className="about-split">
           
           <div>
@@ -1462,22 +1462,22 @@ export default function MintoBabyStudio() {
                 marginBottom: 24,
               }}
             >
-              Three ways to deploy. High speed by design.
+              Three ways to deploy. One safety model.
             </h2>
 
             <div style={{ fontFamily: "'Inter', sans-serif", fontWeight: 300, color: '#827e99', fontSize: 16, lineHeight: 1.7, display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 32 }}>
               <p>
-                MINTOBABY was engineered to eliminate execution delays in Web3 minting. You can run and interact with the bot through <strong style={{ color: '#ffffff' }}>3 distinct interfaces ranked by speed</strong>: the <span style={{ color: '#00ff88', fontWeight: 600 }}>CLI Terminal Engine</span> for sub-10ms raw response, the <span style={{ color: '#6b3ce8', fontWeight: 600 }}>Web Studio</span> for visual CopyMint whale tracking and automated scheduling, and the <span style={{ color: '#0088cc', fontWeight: 600 }}>Telegram Bot (@MintoBabyBot)</span> for on-the-go mobile sniping.
+                MINTOBABY is built around one safety rule: nothing is ever executed blindly. You control it through <strong style={{ color: '#ffffff' }}>3 interfaces</strong>: the <span style={{ color: '#00ff88', fontWeight: 600 }}>CLI Terminal Engine</span> for scripted power users, the <span style={{ color: '#6b3ce8', fontWeight: 600 }}>Web Studio</span> for visual scanning, scheduling, and wallet connection, and the <span style={{ color: '#0088cc', fontWeight: 600 }}>Telegram Bot (@MintoBabyBot)</span> for approvals and instant tx-receipt alerts on the go.
               </p>
               <p>
-                Powered by custom Solidity Yul assembly and instant wallet private key signing, MINTOBABY delivers institutional-grade mempool execution across Robinhood Chain, Ink L2, and Solana.
+                Every automated mint is inspected on-chain, simulated from the executing wallet before broadcast, and confirmed with a full transaction receipt — across Robinhood Chain, Ink L2, and Solana.
               </p>
             </div>
 
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               {[
-                '#1 CLI Terminal (<10ms)',
-                '#2 Web Studio (~25ms)',
+                '#1 CLI Terminal (automation)',
+                '#2 Web Studio (visual control)',
                 '#3 Telegram Bot (@MintoBabyBot)',
                 'Yul Assembly Engine',
                 'Paid Access Only'
@@ -1514,7 +1514,7 @@ export default function MintoBabyStudio() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#00ff88' }} />
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#fff' }}>TRIPLE INTERFACE SPEED MATRIX</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#fff' }}>TRIPLE INTERFACE MATRIX</span>
               </div>
               <span style={{ fontSize: 11, color: '#6b3ce8', fontWeight: 600 }}>ONLINE</span>
             </div>
@@ -1525,17 +1525,17 @@ export default function MintoBabyStudio() {
                 <div style={{ background: '#1c1b24', padding: '12px 16px', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: '3px solid #00ff88' }}>
                   <div>
                     <div style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>1. CLI Terminal Engine</div>
-                    <div style={{ fontSize: 10, color: '#827e99' }}>Fastest Raw Sub-10ms Speed</div>
+                    <div style={{ fontSize: 10, color: '#827e99' }}>Scripted & Headless</div>
                   </div>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#00ff88' }}>&lt; 10ms</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#00ff88' }}>Daemon</span>
                 </div>
 
                 <div style={{ background: '#1c1b24', padding: '12px 16px', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: '3px solid #6b3ce8' }}>
                   <div>
                     <div style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>2. Web Studio Website</div>
-                    <div style={{ fontSize: 10, color: '#827e99' }}>Next Fastest &amp; Visual Hub</div>
+                    <div style={{ fontSize: 10, color: '#827e99' }}>Visual Review Hub</div>
                   </div>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#6b3ce8' }}>~ 25ms</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#6b3ce8' }}>WalletConnect</span>
                 </div>
 
                 <div style={{ background: '#1c1b24', padding: '12px 16px', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: '3px solid #0088cc' }}>
@@ -1580,7 +1580,7 @@ export default function MintoBabyStudio() {
               marginBottom: 16,
             }}
           >
-            Ready to Dominate the Mempool?
+            Ready to Win the Next Drop?
           </h2>
 
           <p
@@ -1642,7 +1642,7 @@ export default function MintoBabyStudio() {
         style={{
           background: '#0a0a0f',
           padding: '60px 5vw 40px',
-          borderTop: '1px solid rgba(250, 8%, 20%, 0.6)',
+          borderTop: '1px solid rgba(107, 60, 232, 0.6)',
         }}
       >
         <div style={{ maxWidth: '1600px', margin: '0 auto' }}>

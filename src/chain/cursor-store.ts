@@ -1,4 +1,5 @@
 import Database from 'better-sqlite3';
+import type { EncryptedWalletData, StoredTarget } from './memory-store.js';
 
 export type StoredEvent = {
   key: string;
@@ -114,6 +115,31 @@ export class CursorStore {
   setVaultActive(userId: string, active: boolean): void {
     this.db.prepare('CREATE TABLE IF NOT EXISTS user_vaults (user_id TEXT PRIMARY KEY, vault_address TEXT NOT NULL, owner_address TEXT, is_active INTEGER NOT NULL, updated_at TEXT NOT NULL)').run();
     this.db.prepare('UPDATE user_vaults SET is_active = ?, updated_at = ? WHERE user_id = ?').run(active ? 1 : 0, new Date().toISOString(), userId);
+  }
+  saveEncryptedWallet(userId: string, wallet: EncryptedWalletData): void {
+    this.db.prepare('CREATE TABLE IF NOT EXISTS encrypted_wallets (user_id TEXT PRIMARY KEY, address TEXT NOT NULL, encrypted_key TEXT NOT NULL, iv TEXT NOT NULL, tag TEXT NOT NULL, created_at INTEGER NOT NULL)').run();
+    this.db.prepare('INSERT INTO encrypted_wallets(user_id,address,encrypted_key,iv,tag,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET address=excluded.address, encrypted_key=excluded.encrypted_key, iv=excluded.iv, tag=excluded.tag, created_at=excluded.created_at')
+      .run(userId, wallet.address, wallet.encryptedKey, wallet.iv, wallet.tag, wallet.createdAt);
+  }
+  getEncryptedWallet(userId: string): EncryptedWalletData | undefined {
+    this.db.prepare('CREATE TABLE IF NOT EXISTS encrypted_wallets (user_id TEXT PRIMARY KEY, address TEXT NOT NULL, encrypted_key TEXT NOT NULL, iv TEXT NOT NULL, tag TEXT NOT NULL, created_at INTEGER NOT NULL)').run();
+    const row = this.db.prepare('SELECT address, encrypted_key, iv, tag, created_at FROM encrypted_wallets WHERE user_id = ?').get(userId) as { address: string; encrypted_key: string; iv: string; tag: string; created_at: number } | undefined;
+    return row ? { address: row.address, encryptedKey: row.encrypted_key, iv: row.iv, tag: row.tag, createdAt: row.created_at } : undefined;
+  }
+  deleteWallet(userId: string): void {
+    this.db.prepare('CREATE TABLE IF NOT EXISTS encrypted_wallets (user_id TEXT PRIMARY KEY, address TEXT NOT NULL, encrypted_key TEXT NOT NULL, iv TEXT NOT NULL, tag TEXT NOT NULL, created_at INTEGER NOT NULL)').run();
+    this.db.prepare('DELETE FROM encrypted_wallets WHERE user_id = ?').run(userId);
+    this.db.prepare('CREATE TABLE IF NOT EXISTS user_wallets (user_id TEXT PRIMARY KEY, address TEXT NOT NULL, wallet_id TEXT, updated_at TEXT NOT NULL)').run();
+    this.db.prepare('DELETE FROM user_wallets WHERE user_id = ?').run(userId);
+  }
+  removeTarget(userId: string, _contractAddress?: string): void {
+    this.db.prepare('CREATE TABLE IF NOT EXISTS target_profiles (user_id TEXT PRIMARY KEY, contract_address TEXT NOT NULL, schema_id TEXT NOT NULL, price_per_nft TEXT NOT NULL, is_live INTEGER NOT NULL, verified INTEGER NOT NULL, updated_at TEXT NOT NULL)').run();
+    this.db.prepare('DELETE FROM target_profiles WHERE user_id = ?').run(userId);
+  }
+  getAllActiveTargets(): Array<{ userId: string } & StoredTarget> {
+    this.db.prepare('CREATE TABLE IF NOT EXISTS target_profiles (user_id TEXT PRIMARY KEY, contract_address TEXT NOT NULL, schema_id TEXT NOT NULL, price_per_nft TEXT NOT NULL, is_live INTEGER NOT NULL, verified INTEGER NOT NULL, updated_at TEXT NOT NULL)').run();
+    const rows = this.db.prepare('SELECT user_id, contract_address, schema_id, price_per_nft, is_live, verified FROM target_profiles WHERE verified = 1').all() as Array<{ user_id: string; contract_address: string; schema_id: string; price_per_nft: string; is_live: number; verified: number }>;
+    return rows.map((r) => ({ userId: r.user_id, contractAddress: r.contract_address, schemaId: r.schema_id, pricePerNft: BigInt(r.price_per_nft), isLive: r.is_live === 1, verified: r.verified === 1 }));
   }
   close(): void { this.db.close(); }
 }

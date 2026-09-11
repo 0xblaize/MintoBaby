@@ -1,28 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../api';
-import { useWallet } from '../context/WalletContext';
-import type { DiscoveryResult, ScheduledMint } from '../types';
-import { IconClock, IconSearch, IconCheck, IconZap } from '../components/Icons';
-
-const inp: React.CSSProperties = {
-  background: '#12111a', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: 8,
-  padding: '12px 16px', color: '#e0e0ff', fontSize: 14, outline: 'none', width: '100%',
-};
-const label: React.CSSProperties = { fontSize: 12, color: '#827e99', marginBottom: 6, display: 'block', fontWeight: 600 };
-const field = (extra?: object): React.CSSProperties => ({ marginBottom: 16, ...extra });
-const btn = (color = '#00ff88', disabled = false): React.CSSProperties => ({
-  background: disabled ? '#171622' : 'transparent',
-  border: `1px solid ${disabled ? '#2a2a3a' : color}`,
-  borderRadius: 8, padding: '12px 24px', color: disabled ? '#555' : color,
-  cursor: disabled ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 700,
-  display: 'inline-flex', alignItems: 'center', gap: 8
-});
+import { Alert, Button, Card, Field, PageHeader, StatusBadge } from '../components/ui';
+import { IconClock, IconList, IconSearch, IconTelegram } from '../components/Icons';
+import type { DiscoveryResult, NetworkType } from '../types';
 
 function useCountdown(targetMs?: number) {
   const [remaining, setRemaining] = useState(0);
   useEffect(() => {
-    if (!targetMs) return;
+    if (!targetMs) { setRemaining(0); return; }
     const tick = () => setRemaining(Math.max(0, (targetMs - Date.now()) / 1000));
     tick();
     const id = setInterval(tick, 100);
@@ -31,25 +17,22 @@ function useCountdown(targetMs?: number) {
   const h = Math.floor(remaining / 3600);
   const m = Math.floor((remaining % 3600) / 60);
   const s = Math.floor(remaining % 60);
-  const ms = Math.floor((remaining % 1) * 10);
-  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${ms}`;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
 export default function SchedulePage() {
   const loc = useLocation();
   const nav = useNavigate();
-  const { address } = useWallet();
-  const state = loc.state as { contract?: string; price?: string; mintTimeMs?: number } | null;
+  const state = loc.state as { contract?: string; price?: string; mintTimeMs?: number; network?: NetworkType } | null;
 
   const [contract, setContract] = useState(state?.contract ?? '');
+  const [network] = useState<NetworkType>(state?.network ?? 'robinhood');
   const [qty, setQty] = useState('1');
   const [value, setValue] = useState(state?.price ?? '0');
   const [mintTimeMs, setMintTimeMs] = useState<number | undefined>(state?.mintTimeMs);
   const [timeInput, setTimeInput] = useState('');
   const [scanning, setScanning] = useState(false);
-  const [arming, setArming] = useState(false);
   const [info, setInfo] = useState<DiscoveryResult | null>(null);
-  const [armed, setArmed] = useState<ScheduledMint | null>(null);
   const [error, setError] = useState('');
 
   const countdown = useCountdown(mintTimeMs);
@@ -58,128 +41,130 @@ export default function SchedulePage() {
     if (!contract.trim()) return;
     setScanning(true); setInfo(null); setError('');
     try {
-      const r = await api.scan(contract.trim());
+      const r = await api.scan(contract.trim(), network);
       setInfo(r);
-      if (r.price_eth && r.price_eth !== '0.000000') setValue(r.price_eth);
+      if (r.price_native && r.price_native !== '0.000000') setValue(r.price_native);
       if (r.on_chain_start_time_ms) setMintTimeMs(r.on_chain_start_time_ms);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Scan failed');
     } finally { setScanning(false); }
-  }, [contract]);
+  }, [contract, network]);
 
   function applyTimeInput() {
-    try {
-      const n = Number(timeInput);
-      if (!isNaN(n) && n > 1e12) { setMintTimeMs(n); return; }
-      const dt = new Date(timeInput);
-      if (!isNaN(dt.getTime())) { setMintTimeMs(dt.getTime()); return; }
-      setError('Cannot parse time. Use ISO datetime or unix ms.');
-    } catch { setError('Invalid time format.'); }
-  }
-
-  function doArm() {
-    if (!address) {
-      setError('Connect an external wallet before scheduling.');
-      return;
-    }
-    setError('Website scheduled signing is not connected to the current API yet. Use the Telegram bot or Terminal CLI for automated scheduled execution.');
+    const n = Number(timeInput);
+    if (!isNaN(n) && n > 1e12) { setMintTimeMs(n); return; }
+    const dt = new Date(timeInput);
+    if (!isNaN(dt.getTime())) { setMintTimeMs(dt.getTime()); return; }
+    setError('Cannot parse time. Use an ISO datetime or a unix millisecond timestamp.');
   }
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 26, fontWeight: 900, marginBottom: 24, color: '#ffffff', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <IconClock size={24} color="#ffd700" />
-        <span>Quantum Drop Scheduler</span>
-      </h1>
+    <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+      <PageHeader
+        title="Drop Scheduler"
+        subtitle="Stage a block-accurate mint trigger. Firing is handled by the bot engine after your final approval."
+      />
 
-      {armed ? (
-        <div style={{ background: '#0d1f0d', border: '1px solid #00ff88', borderRadius: 14, padding: 32, textAlign: 'center' }}>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#00ff88', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-            <IconCheck size={24} />
-            <span>Sniper Armed & Ready</span>
-          </div>
-          <div style={{ color: '#827e99', marginBottom: 16 }}>Schedule ID: <code style={{ color: '#ffffff' }}>{armed.id}</code></div>
-          <div style={{ fontSize: 40, fontWeight: 900, color: '#ffd700', fontFamily: 'monospace', marginBottom: 16, letterSpacing: '0.05em' }}>
-            {countdown}
-          </div>
-          <div style={{ color: '#827e99', fontSize: 13, marginBottom: 20 }}>
-            Contract: {armed.contract}<br />
-            Qty: {armed.quantity} · Value: {armed.value_eth} ETH
-          </div>
-          <button style={btn('#00ff88')} onClick={() => nav('/schedules')}>View Active Schedules</button>
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
-          <div style={{ background: '#12111a', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 14, padding: 24 }}>
-            <div style={field()}>
-              <label style={label}>Contract Address</label>
+      <div className="mb-split">
+        <div>
+          <Card style={{ marginBottom: 16 }}>
+            <Field label="Contract Address">
               <div style={{ display: 'flex', gap: 8 }}>
-                <input style={inp} value={contract} onChange={e => setContract(e.target.value)} placeholder="0x..." />
-                <button style={{ ...btn('#827e99'), whiteSpace: 'nowrap' }} onClick={doScan} disabled={scanning}>
+                <input
+                  className="mb-input mb-mono"
+                  value={contract}
+                  onChange={e => setContract(e.target.value)}
+                  placeholder="0x…"
+                  style={{ flex: 1, minWidth: 0 }}
+                />
+                <Button variant="ghost" onClick={doScan} disabled={scanning || !contract.trim()}>
                   <IconSearch size={14} />
                   <span>{scanning ? '…' : 'Scan'}</span>
-                </button>
+                </Button>
               </div>
-            </div>
+            </Field>
 
-            {/* Mint time */}
-            <div style={{ background: '#171622', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 10, padding: 16, marginBottom: 16 }}>
-              <label style={label}>Mint Trigger Time</label>
+            <Field label="Mint Trigger Time (UTC)">
               {mintTimeMs ? (
-                <div>
-                  <div style={{ color: '#ffd700', fontSize: 28, fontWeight: 900, fontFamily: 'monospace' }}>{countdown}</div>
-                  <div style={{ fontSize: 11, color: '#827e99', marginTop: 4 }}>{new Date(mintTimeMs).toUTCString()}</div>
-                  <button onClick={() => setMintTimeMs(undefined)} style={{ ...btn('#827e99'), padding: '4px 10px', fontSize: 12, marginTop: 8 }}>Change Time</button>
+                <div style={{ background: 'var(--mb-raised)', border: '1px solid var(--mb-border)', borderRadius: 10, padding: 14 }}>
+                  <div style={{ color: 'var(--mb-gold)', fontSize: 26, fontWeight: 700, fontFamily: 'var(--mb-font-mono)', letterSpacing: '0.04em' }}>
+                    {countdown}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: 'var(--mb-muted)', marginTop: 4 }}>{new Date(mintTimeMs).toUTCString()}</div>
+                  <Button variant="ghost" size="sm" style={{ marginTop: 10 }} onClick={() => setMintTimeMs(undefined)}>
+                    Change Time
+                  </Button>
                 </div>
               ) : (
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <input style={{ ...inp, flex: 1 }} value={timeInput} onChange={e => setTimeInput(e.target.value)}
-                    placeholder="ISO datetime or unix ms" />
-                  <button style={{ ...btn('#ffd700'), whiteSpace: 'nowrap' }} onClick={applyTimeInput}>Set</button>
+                  <input
+                    className="mb-input"
+                    value={timeInput}
+                    onChange={e => setTimeInput(e.target.value)}
+                    placeholder="e.g. 2026-09-12T16:00:00Z or unix ms"
+                    style={{ flex: 1, minWidth: 0 }}
+                  />
+                  <Button variant="ghost" onClick={applyTimeInput} disabled={!timeInput.trim()}>Set</Button>
                 </div>
               )}
-            </div>
+            </Field>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div style={field()}>
-                <label style={label}>Quantity</label>
-                <input style={inp} type="number" min={1} value={qty} onChange={e => setQty(e.target.value)} />
-              </div>
-              <div style={field()}>
-                <label style={label}>Value (ETH)</label>
-                <input style={inp} value={value} onChange={e => setValue(e.target.value)} placeholder="0.05" />
-              </div>
+              <Field label="Quantity">
+                <input className="mb-input" type="number" min={1} value={qty} onChange={e => setQty(e.target.value)} />
+              </Field>
+              <Field label="Value (ETH)">
+                <input className="mb-input" value={value} onChange={e => setValue(e.target.value)} placeholder="0.05" />
+              </Field>
             </div>
-            <div style={{ ...field(), color: '#9896b0', fontSize: 13, lineHeight: 1.6 }}>
-              {address ? <>Connected wallet: <code style={{ color: '#fff' }}>{address}</code><br />Scheduled transactions must be approved by an external wallet.</> : 'Connect an external wallet to prepare a website schedule.'}
-            </div>
-            {error && <div style={{ color: '#ff4444', fontSize: 13, marginBottom: 12 }}>{error}</div>}
-            <button style={btn('#00ff88', arming || !contract || !address || !mintTimeMs)}
-              onClick={doArm} disabled={arming || !contract || !address || !mintTimeMs}>
-              <IconZap size={16} />
-              <span>{arming ? 'Arming Sniper...' : 'Arm Drop Sniper'}</span>
-            </button>
-          </div>
 
-          {info && (
-            <div style={{ background: '#12111a', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 14, padding: 20, height: 'fit-content' }}>
-              <div style={{ fontWeight: 800, marginBottom: 12, color: '#ffffff' }}>{info.name ?? 'Unknown'} {info.symbol && `(${info.symbol})`}</div>
-              {[
-                ['Price', `${info.price_eth} ETH`],
-                ['Phase', info.phase_status],
-                ['Kind', info.phase_kind],
-                ['Max/Wallet', info.max_per_wallet ? String(info.max_per_wallet) : 'Unlimited'],
-                ['On-chain open', info.on_chain_start_time_ms ? new Date(info.on_chain_start_time_ms).toUTCString() : 'Unknown'],
-              ].map(([k, v]) => (
-                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 13 }}>
-                  <span style={{ color: '#827e99' }}>{k}</span>
-                  <span style={{ color: '#ffffff', fontWeight: 600 }}>{v}</span>
-                </div>
-              ))}
+            {error && <Alert kind="error">{error}</Alert>}
+          </Card>
+
+          <Card>
+            <div style={{ fontSize: 13, fontWeight: 650, color: 'var(--mb-text)', marginBottom: 8 }}>Arming the trigger</div>
+            <p style={{ fontSize: 12.5, color: 'var(--mb-muted)', lineHeight: 1.65, margin: '0 0 14px' }}>
+              Armed schedules live on the bot engine and require a private key that the website never touches.
+              Confirm the details above, then arm the trigger with <span className="mb-mono">/schedule</span> in Telegram
+              or <span className="mb-mono">mintobaby schedule</span> in the Terminal.
+            </p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Button onClick={() => nav('/telegram-guide')}><IconTelegram size={14} /> Arm via Telegram</Button>
+              <Button variant="ghost" onClick={() => nav('/terminal-guide')}>Arm via Terminal</Button>
+              <Button variant="ghost" onClick={() => nav('/schedules')}><IconList size={14} /> View Schedules</Button>
             </div>
+          </Card>
+        </div>
+
+        <div>
+          {info ? (
+            <Card>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <div style={{ fontWeight: 700, color: 'var(--mb-text)', fontSize: 14 }}>
+                  {info.name ?? 'Unknown'} {info.symbol && <span style={{ color: 'var(--mb-muted)', fontWeight: 400 }}>({info.symbol})</span>}
+                </div>
+                <StatusBadge status={info.phase_status} />
+              </div>
+              <div className="mb-kv"><span className="mb-kv-key">Price</span><span className="mb-kv-val">{info.price_native} ETH</span></div>
+              <div className="mb-kv"><span className="mb-kv-key">Phase</span><span className="mb-kv-val">{info.phase_kind}</span></div>
+              <div className="mb-kv"><span className="mb-kv-key">Max / wallet</span><span className="mb-kv-val">{info.max_per_wallet ?? 'Unlimited'}</span></div>
+              <div className="mb-kv">
+                <span className="mb-kv-key">On-chain open</span>
+                <span className="mb-kv-val">{info.on_chain_start_time_ms ? new Date(info.on_chain_start_time_ms).toUTCString() : 'Unknown'}</span>
+              </div>
+              <div style={{ marginTop: 12 }}>
+                <Alert kind="info">
+                  {info.on_chain_start_time_ms
+                    ? 'Trigger time prefilled from the on-chain start. Arrive a few seconds early — gas and mempool propagation are not instant.'
+                    : 'No on-chain start time found. Set the trigger manually and double-check the official drop announcement.'}
+                </Alert>
+              </div>
+            </Card>
+          ) : (
+            <Card><div className="mb-empty">Scan a contract to pull its phase timing into the scheduler.</div></Card>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

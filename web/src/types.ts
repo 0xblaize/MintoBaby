@@ -4,10 +4,9 @@ export interface WalletInfo {
   address: string;
   network?: NetworkType;
   has_key: boolean;
-  balance_eth?: string;
   balance_native?: string;
   symbol?: string;
-  private_key?: string;
+  label?: string | null;
 }
 
 export interface DiscoveryResult {
@@ -15,17 +14,16 @@ export interface DiscoveryResult {
   network?: NetworkType;
   name?: string;
   symbol?: string;
-  price_eth?: string;
   price_native?: string;
   price_status: string;
   phase_kind: string;
   phase_status: string;
   is_live: boolean;
-  max_per_wallet?: number;
-  on_chain_start_time_ms?: number;
-  on_chain_end_time_ms?: number;
-  sea_drop_address?: string;
-  program_id?: string;
+  max_per_wallet?: number | null;
+  on_chain_start_time_ms?: number | null;
+  on_chain_end_time_ms?: number | null;
+  sea_drop_address?: string | null;
+  program_id?: string | null;
 }
 
 export interface MintResult {
@@ -43,23 +41,11 @@ export interface ScheduledMint {
   contract: string;
   network?: NetworkType;
   quantity: number;
-  value_eth?: string;
   value_native?: string;
   mint_time_ms: number;
   status: string;
-  tx_hash?: string;
-  error?: string;
-}
-
-export interface CopyMintRule {
-  id: string;
-  target_wallet: string;
-  network: NetworkType;
-  max_copy_quantity: number;
-  max_price_native: string;
-  enabled: boolean;
-  matches_count: number;
-  last_action_time_ms?: number;
+  tx_hash?: string | null;
+  error?: string | null;
 }
 
 export interface HealthResponse {
@@ -67,3 +53,15 @@ export interface HealthResponse {
   networks: string[];
   chains: Record<string, { chain_id: number | null; rpc: string }>;
 }
+
+export const EXPLORERS: Record<NetworkType, string> = {
+  robinhood: 'https://robinhoodchain.blockscout.com',
+  ink: 'https://explorer.inkonchain.com',
+  solana: 'https://solscan.io',
+};
+
+export const NETWORK_LABELS: Record<NetworkType, string> = {
+  robinhood: 'Robinhood Chain',
+  ink: 'Ink L2',
+  solana: 'Solana',
+};

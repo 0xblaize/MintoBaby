@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
     envDir: '..',
     define: {
       __MINTOBABY_CONFIG__: JSON.stringify({
-        apiUrl: env.API_URL || 'http://localhost:8000',
+        apiUrl: (env.API_URL || 'http://localhost:8000').replace(/\/$/, ''),
         googleClientId: env.GOOGLE_CLIENT_ID || '',
         walletConnectProjectId: env.WALLETCONNECT_PROJECT_ID || '',
       }),

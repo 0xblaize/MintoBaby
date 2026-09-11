@@ -6,8 +6,7 @@ from .config import settings
 from .services.chain import ChainService, NETWORKS
 from .services.executor import ExecutorService
 from .services.scheduler import SchedulerService
-from .services.copy_mint import CopyMintService
-from .routers import wallet, discovery, mint, copymint, auth, subscriptions
+from .routers import wallet, discovery, mint, auth, subscriptions
 
 app = FastAPI(
     title="MintoBaby Matrix API",
@@ -27,7 +26,6 @@ app.include_router(subscriptions.router)
 app.include_router(wallet.router)
 app.include_router(discovery.router)
 app.include_router(mint.router)
-app.include_router(copymint.router)
 
 
 @app.on_event("startup")
@@ -39,14 +37,11 @@ async def startup():
         net_cfg = NETWORKS.get(network, NETWORKS["robinhood"])
         return ExecutorService(ChainService(net_cfg["rpc"], net_cfg["chain_id"], network))
 
-    app.state.scheduler = SchedulerService(executor_factory)
+    async def telegram_notify(msg: str):
+        from .routers.mint import _tg_notify
+        await _tg_notify(msg)
 
-    def copy_executor_factory(network):
-        net_cfg = NETWORKS.get(network, NETWORKS["robinhood"])
-        net_chain = ChainService(net_cfg["rpc"], net_cfg["chain_id"], network)
-        return ExecutorService(net_chain)
-
-    app.state.copy_mint = CopyMintService(copy_executor_factory)
+    app.state.scheduler = SchedulerService(executor_factory, telegram_notify=telegram_notify)
 
 
 @app.get("/", include_in_schema=False)

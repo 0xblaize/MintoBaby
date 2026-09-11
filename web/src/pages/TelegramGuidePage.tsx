@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getUserActivationCode } from '../utils/activation';
+import { getActivationCode } from '../utils/activation';
 import {
   IconTelegram,
   IconCopy,
@@ -17,7 +17,7 @@ import {
 
 export default function TelegramGuidePage() {
   const navigate = useNavigate();
-  const activationCode = getUserActivationCode();
+  const activationCode = getActivationCode();
   const [copied, setCopied] = useState(false);
   const [testCode, setTestCode] = useState('');
   const [activated, setActivated] = useState(false);
@@ -241,12 +241,11 @@ export default function TelegramGuidePage() {
             {[
               { cmd: '/activate <code>', desc: 'Pair your account with Telegram bot', ex: `/activate ${activationCode}` },
               { cmd: '/status', desc: 'Check wallet balances & active snipers', ex: '/status' },
-              { cmd: '/mint <chain> <contract> <qty>', desc: 'Trigger immediate sub-second mint', ex: '/mint robinhood 0x123... 2' },
+              { cmd: '/mint <chain> <contract> <qty>', desc: 'Stage an approved instant mint', ex: '/mint robinhood 0x123... 2' },
               { cmd: '/scan <contract>', desc: 'Probe collection state & price specs', ex: '/scan 0x123...' },
-              { cmd: '/copymint <wallet>', desc: 'Mirror target whale wallet mints', ex: '/copymint 0xWhale...' },
               { cmd: '/stop', desc: 'Pause all active background snipers', ex: '/stop' }
             ].map((row, idx) => (
-              <tr key={row.cmd} style={{ borderBottom: idx !== 5 ? '1px solid rgba(255, 255, 255, 0.04)' : 'none' }}>
+              <tr key={row.cmd} style={{ borderBottom: idx !== 4 ? '1px solid rgba(255, 255, 255, 0.04)' : 'none' }}>
                 <td style={{ padding: '14px 20px', fontFamily: 'monospace', color: '#00ccff', fontWeight: 700 }}>{row.cmd}</td>
                 <td style={{ padding: '14px 20px', color: '#d0d0e5' }}>{row.desc}</td>
                 <td style={{ padding: '14px 20px', fontFamily: 'monospace', color: '#827e99' }}>{row.ex}</td>

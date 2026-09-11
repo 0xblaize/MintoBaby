@@ -112,7 +112,7 @@ export class MemoryStore implements IStore {
     return list;
   }
 
-  getUserTargets(userId: string): Array<StoredTarget> {
+  getUserTargets(userId: string): Promise<Array<StoredTarget>> | Array<StoredTarget> {
     const list: StoredTarget[] = [];
     for (const [key, target] of this.targetProfiles.entries()) {
       if (key.startsWith(`${userId}:`)) {
@@ -171,7 +171,7 @@ export class MemoryStore implements IStore {
   }
 
   confirmTarget(userId: string, contractAddress?: string): Promise<boolean> | boolean {
-    const target = this.getTarget(userId, contractAddress);
+    const target = this.findTarget(userId, contractAddress);
     if (!target || target.metadata?.approvalStatus !== 'pending') return false;
     target.verified = true;
     target.metadata = { ...(target.metadata ?? {}), approvalStatus: 'approved', executionStatus: 'ready' };
@@ -179,28 +179,28 @@ export class MemoryStore implements IStore {
   }
 
   claimTarget(userId: string, contractAddress?: string): Promise<boolean> | boolean {
-    const target = this.getTarget(userId, contractAddress);
+    const target = this.findTarget(userId, contractAddress);
     if (!target || !target.verified || target.metadata?.approvalStatus !== 'approved' || target.metadata?.executionStatus === 'claimed') return false;
     target.metadata = { ...(target.metadata ?? {}), executionStatus: 'claimed' };
     return true;
   }
 
   releaseTarget(userId: string, contractAddress?: string): Promise<boolean> | boolean {
-    const target = this.getTarget(userId, contractAddress);
+    const target = this.findTarget(userId, contractAddress);
     if (!target || target.metadata?.executionStatus !== 'claimed') return false;
     target.metadata = { ...(target.metadata ?? {}), executionStatus: 'ready' };
     return true;
   }
 
   recordTargetBroadcast(userId: string, contractAddress: string, txHash: string, functionSignature: string): Promise<boolean> | boolean {
-    const target = this.getTarget(userId, contractAddress);
+    const target = this.findTarget(userId, contractAddress);
     if (!target || target.metadata?.executionStatus !== 'claimed') return false;
     target.metadata = { ...(target.metadata ?? {}), executionStatus: 'broadcast', txHash, mintFunction: functionSignature };
     return true;
   }
 
   setTargetSchedule(userId: string, contractAddress: string, scheduledTimeMs?: number): Promise<boolean> | boolean {
-    const target = this.getTarget(userId, contractAddress);
+    const target = this.findTarget(userId, contractAddress);
     if (!target) return false;
     const metadata = { ...(target.metadata ?? {}) };
     if (scheduledTimeMs && scheduledTimeMs > 0) {
@@ -214,7 +214,7 @@ export class MemoryStore implements IStore {
     return true;
   }
 
-  getTarget(userId: string, contractAddress?: string): StoredTarget | undefined {
+  private findTarget(userId: string, contractAddress?: string): StoredTarget | undefined {
     if (contractAddress) {
       return this.targetProfiles.get(this.targetKey(userId, contractAddress));
     }
@@ -229,6 +229,10 @@ export class MemoryStore implements IStore {
       }
     }
     return undefined;
+  }
+
+  getTarget(userId: string, contractAddress?: string): Promise<StoredTarget | undefined> | StoredTarget | undefined {
+    return this.findTarget(userId, contractAddress);
   }
 
   saveInvite(code: string, createdBy: string): void {

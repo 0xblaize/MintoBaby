@@ -91,7 +91,7 @@ class SchedulerService:
             private_key=private_key,
             contract=mint.contract,
             quantity=mint.quantity,
-            value_native=mint.value_native,
+            value_eth=mint.value_native,
             on_broadcast=on_broadcast,
         )
 

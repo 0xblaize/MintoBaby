@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { getActivationCode } from '../utils/activation';
 import { api } from '../api';
 import {
   MintoLogo,
@@ -12,10 +13,8 @@ import {
 export default function SubscribePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  
-  const defaultCode = localStorage.getItem('mintobaby_user_activation_code') || '';
 
-  const activationCode = defaultCode;
+  const activationCode = user?.activation_code ?? getActivationCode();
   const [activeTab, setActiveTab] = useState<'plans' | 'key'>('plans');
   const [billingCycle, setBillingCycle] = useState<'weekly' | 'monthly' | 'yearly'>('weekly');
   const [selectedPlanId, setSelectedPlanId] = useState<string>('pro');
@@ -55,10 +54,10 @@ export default function SubscribePage() {
       badge: 'Paid Only',
       color: '#00ccff',
       features: [
-        '5 Active Wallet Snipers',
-        'Robinhood, Solana & Ink L2 Access',
-        '100ms Execution Latency',
-        'Telegram & Discord Alerts',
+        '1 Execution Wallet',
+        'Robinhood Chain & Ink L2',
+        'Telegram + Terminal pairing (1 key)',
+        'Contract scanner & phase alerts',
         'Standard Support'
       ]
     },
@@ -71,12 +70,12 @@ export default function SubscribePage() {
       badge: 'MOST POPULAR',
       color: '#7c5af0',
       features: [
-        'Unlimited Wallet Snipers',
-        'All Chains (Robinhood, Solana, Ink L2)',
-        '10ms Auto-Mint Matrix Executor',
-        'Priority Secure Wallet Vaults',
-        'VIP Copy Trading & CopyMint Engine',
-        '24/7 Priority Support'
+        'Multiple Execution Wallets',
+        'All Chains (Robinhood, Ink L2, Solana*)',
+        'Scheduled block-accurate auto-mint',
+        'Instant broadcast + receipt alerts',
+        'Solana adapters in development',
+        'Priority Support'
       ]
     },
     {
@@ -88,10 +87,10 @@ export default function SubscribePage() {
       badge: 'ENTERPRISE',
       color: '#22d87a',
       features: [
-        'Custom AutoMintExecutor Contracts',
-        'Dedicated MintoBaby Engineering Team',
-        'Custom Secure Multi-sig Policies',
-        'White-Label Client Dashboard',
+        'Custom supported mint adapters',
+        'Dedicated onboarding engineer',
+        'Private RPC & latency tuning',
+        'Custom alert routing',
         '1-on-1 Strategy & Architecture'
       ]
     }
@@ -109,6 +108,12 @@ export default function SubscribePage() {
     e.preventDefault();
     setLoading(true);
     setErrorMsg('');
+
+    if (!activationCode) {
+      setErrorMsg('Sign in first — checkout needs your account activation code.');
+      setLoading(false);
+      return;
+    }
 
     try {
       const checkout = await api.createSubscriptionCheckout({
@@ -151,7 +156,7 @@ export default function SubscribePage() {
   // Handle Activation Key Verification
   const handleKeyVerification = async (e: React.FormEvent) => {
     e.preventDefault();
-    const codeToUse = (activationInput.trim() || defaultCode).toUpperCase();
+    const codeToUse = (activationInput.trim() || activationCode).toUpperCase();
     setLoading(true);
     setErrorMsg('');
 
@@ -458,7 +463,7 @@ export default function SubscribePage() {
                 type="text"
                 value={activationInput}
                 onChange={(e) => setActivationInput(e.target.value)}
-                placeholder={defaultCode}
+                placeholder={activationCode || 'MINTO-XXXX-XXXX-XXXX'}
                 style={{
                   width: '100%',
                   background: '#1a1925',
