@@ -64,7 +64,7 @@ app.add_typer(wallet_app, name="wallet")
 # Helpers
 # ---------------------------------------------------------------------------
 def _chain() -> ChainService:
-    return ChainService(settings.rpc_url, settings.chain_id)
+    return ChainService(settings.robinhood_rpc_url, settings.robinhood_chain_id)
 
 
 def _discovery() -> DiscoveryService:
@@ -127,7 +127,7 @@ def _countdown(ms: int) -> str:
 def _banner():
     console.print(Panel(
         f"[{ACCENT}]⚡ MintoBaby NFT Sniper[/{ACCENT}]\n"
-        f"[{DIM}]Robinhood Chain · Chain ID {settings.chain_id}[/{DIM}]",
+        f"[{DIM}]Robinhood Chain · Chain ID {settings.robinhood_chain_id}[/{DIM}]",
         box=box.DOUBLE_EDGE, expand=False
     ))
 
@@ -160,7 +160,7 @@ def scan(contract: str = typer.Argument(..., help="NFT contract address (0x...)"
 
     grid.add_row("Collection",   f"[bold]{r.name or 'Unknown'}[/bold] ({r.symbol or '?'})")
     grid.add_row("Contract",     f"[{DIM}]{r.address}[/{DIM}]")
-    grid.add_row("Price",        f"[{ACCENT}]{r.price_eth} ETH[/{ACCENT}] [{DIM}]({r.price_status})[/{DIM}]")
+    grid.add_row("Price",        f"[{ACCENT}]{r.price_native} ETH[/{ACCENT}] [{DIM}]({r.price_status})[/{DIM}]")
     grid.add_row("Phase",        f"[{phase_col}]{r.phase_status.upper()}[/{phase_col}] [{DIM}]({r.phase_kind})[/{DIM}]")
     grid.add_row("Live",         f"[{ACCENT}]YES ✓[/{ACCENT}]" if r.is_live else f"[{DIM}]NO[/{DIM}]")
     grid.add_row("Opens",        _fmt_time(r.on_chain_start_time_ms))
@@ -202,7 +202,7 @@ def mint(
         phase_col = _phase_color(info.phase_status)
         console.print(Panel(
             f"[bold]{info.name or 'Unknown'}[/bold] ({info.symbol or '?'})\n"
-            f"Price: [{ACCENT}]{info.price_eth} ETH[/{ACCENT}]  "
+            f"Price: [{ACCENT}]{info.price_native} ETH[/{ACCENT}]  "
             f"Phase: [{phase_col}]{info.phase_status.upper()}[/{phase_col}]",
             title="Contract", box=box.ROUNDED, expand=False
         ))
@@ -213,7 +213,7 @@ def mint(
                 return
 
         pk = _get_pk_or_prompt()
-        actual_value = value if value != "0" else info.price_eth
+        actual_value = value if value != "0" else info.price_native
 
         console.print(f"\n[{DIM}]Quantity:[/{DIM}] {qty}   [{DIM}]Value:[/{DIM}] {actual_value} ETH")
         if not Confirm.ask(f"[{ACCENT}]Confirm mint?[/{ACCENT}]", default=True):
@@ -290,7 +290,7 @@ def schedule(
 
         console.print(Panel(
             f"[bold]{info.name or 'Unknown'}[/bold] ({info.symbol or '?'})\n"
-            f"Price:    [{ACCENT}]{info.price_eth} ETH[/{ACCENT}]\n"
+            f"Price:    [{ACCENT}]{info.price_native} ETH[/{ACCENT}]\n"
             f"On-chain open: {_fmt_time(info.on_chain_start_time_ms)}",
             title="Contract", box=box.ROUNDED, expand=False
         ))
@@ -324,7 +324,7 @@ def schedule(
             console.print(f"[{ERROR}]That time is already in the past.[/{ERROR}]")
             return
 
-        actual_value = value if value != "0" else info.price_eth
+        actual_value = value if value != "0" else info.price_native
         pk = _get_pk_or_prompt()
 
         console.print(f"\n[{ACCENT}]🎯 Arming sniper:[/{ACCENT}]")
@@ -341,11 +341,11 @@ def schedule(
         async def notify(msg: str):
             console.print(f"[{ACCENT}]{msg}[/{ACCENT}]")
 
-        sched_svc = SchedulerService(_executor(), notify)
+        sched_svc = SchedulerService(lambda net: _executor(), notify)
         req = ScheduleRequest(
             contract=contract,
             quantity=qty,
-            value_eth=actual_value,
+            value_native=actual_value,
             private_key=pk,
             mint_time_ms=target_ms,
         )
@@ -438,9 +438,9 @@ def status():
 
         console.print(Panel(
             f"{wallet_str}\n\n"
-            f"[{DIM}]Chain:[/{DIM}] Robinhood Chain (ID {settings.chain_id})\n"
+            f"[{DIM}]Chain:[/{DIM}] Robinhood Chain (ID {settings.robinhood_chain_id})\n"
             f"[{DIM}]Block:[/{DIM}] [{ACCENT}]{block:,}[/{ACCENT}]\n"
-            f"[{DIM}]RPC:  [/{DIM}] {settings.rpc_url}",
+            f"[{DIM}]RPC:  [/{DIM}] {settings.robinhood_rpc_url}",
             title="[bold]MintoBaby Status[/bold]", box=box.ROUNDED
         ))
 

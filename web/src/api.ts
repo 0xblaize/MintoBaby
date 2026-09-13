@@ -19,15 +19,26 @@ export interface SubscriptionCheckoutResponse {
 }
 
 async function req<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(body.detail ?? 'Request failed');
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      headers: { 'Content-Type': 'application/json' },
+      ...options,
+    });
+  } catch {
+    throw new Error(`Cannot reach the engine at ${BASE}. Start the API (uvicorn api.main:app) or fix API_URL.`);
   }
-  return res.json();
+  const text = await res.text();
+  let body: unknown = null;
+  try { body = text ? JSON.parse(text) : null; } catch { body = null; }
+  if (!res.ok) {
+    const detail = (body as { detail?: string } | null)?.detail;
+    throw new Error(detail ?? `Request failed (${res.status})`);
+  }
+  if (body === null) {
+    throw new Error(`Engine at ${BASE} returned a non-JSON response — is API_URL pointing at the FastAPI backend, not the website?`);
+  }
+  return body as T;
 }
 
 export const api = {

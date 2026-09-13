@@ -738,7 +738,7 @@ export default function MintoBabyStudio() {
                 boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
                 display: 'flex',
                 flexDirection: 'column',
-                justify: 'space-between',
+                justifyContent: 'space-between',
               }}
             >
               <div style={{ position: 'absolute', top: 16, right: 16, background: '#6b3ce8', color: '#fff', fontSize: 10, fontWeight: 800, padding: '4px 12px', borderRadius: 12, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
@@ -780,7 +780,7 @@ export default function MintoBabyStudio() {
                 overflow: 'hidden',
                 display: 'flex',
                 flexDirection: 'column',
-                justify: 'space-between',
+                justifyContent: 'space-between',
               }}
             >
               <div style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255, 255, 255, 0.1)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '4px 12px', borderRadius: 12, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
@@ -822,7 +822,7 @@ export default function MintoBabyStudio() {
                 overflow: 'hidden',
                 display: 'flex',
                 flexDirection: 'column',
-                justify: 'space-between',
+                justifyContent: 'space-between',
               }}
             >
               <div style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(0, 136, 204, 0.2)', color: '#0088cc', border: '1px solid rgba(0, 136, 204, 0.4)', fontSize: 10, fontWeight: 700, padding: '4px 12px', borderRadius: 12, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
