@@ -151,11 +151,10 @@ export default function TerminalGuidePage() {
           <p style={{ fontSize: 13, color: '#827e99', lineHeight: 1.6, marginBottom: 12 }}>
             Clone the repo, install the engine dependencies, and run the guided setup:
           </p>
-          {['git clone https://github.com/damiblaize/MintoBaby.git && cd MintoBaby',
-            'python3 -m venv .venv && .venv/bin/pip install -r api/requirements.txt',
-            '.venv/bin/python -m api.cli setup'].map((cmd, i) => (
-            <div key={i} style={{ background: '#181724', borderRadius: 8, padding: '10px 12px', position: 'relative', marginBottom: i === 2 ? 0 : 8 }}>
-              <code style={{ color: i === 2 ? '#00ccff' : '#00ff88', fontSize: 12, fontFamily: 'monospace', wordBreak: 'break-all', paddingRight: 28 }}>{cmd}</code>
+          {['curl -fsSL https://raw.githubusercontent.com/0xblaize/MintoBaby/main/install.sh | bash',
+            'mintobaby setup'].map((cmd, i) => (
+            <div key={i} style={{ background: '#181724', borderRadius: 8, padding: '10px 12px', position: 'relative', marginBottom: i === 1 ? 0 : 8 }}>
+              <code style={{ color: i === 1 ? '#00ccff' : '#00ff88', fontSize: 12, fontFamily: 'monospace', wordBreak: 'break-all', paddingRight: 28 }}>{cmd}</code>
               <button
                 onClick={() => handleCopyCommand(cmd, `inst-${i}`)}
                 style={{ position: 'absolute', right: 8, top: 8, background: 'none', border: 'none', color: '#827e99', cursor: 'pointer' }}
@@ -179,10 +178,10 @@ export default function TerminalGuidePage() {
           </p>
           <div style={{ background: '#181724', borderRadius: 8, padding: 12, position: 'relative' }}>
             <code style={{ color: '#00ff88', fontSize: 13, fontFamily: 'monospace' }}>
-              .venv/bin/python -m api.cli login --code {activationCode}
+              mintobaby login --code {activationCode}
             </code>
             <button
-              onClick={() => handleCopyCommand(`.venv/bin/python -m api.cli login --code ${activationCode}`, 'login-cmd')}
+              onClick={() => handleCopyCommand(`mintobaby login --code ${activationCode}`, 'login-cmd')}
               style={{ position: 'absolute', right: 8, top: 8, background: 'none', border: 'none', color: '#827e99', cursor: 'pointer' }}
             >
               {copiedCmd === 'login-cmd' ? <IconCheck size={14} color="#00ff88" /> : <IconCopy size={14} />}
@@ -203,10 +202,10 @@ export default function TerminalGuidePage() {
           </p>
           <div style={{ background: '#181724', borderRadius: 8, padding: 12, position: 'relative' }}>
             <code style={{ color: '#00ff88', fontSize: 13, fontFamily: 'monospace' }}>
-              .venv/bin/python -m api.cli daemon --auto-gas
+              mintobaby daemon --auto-gas
             </code>
             <button
-              onClick={() => handleCopyCommand('.venv/bin/python -m api.cli daemon --auto-gas', 'daemon-cmd')}
+              onClick={() => handleCopyCommand('mintobaby daemon --auto-gas', 'daemon-cmd')}
               style={{ position: 'absolute', right: 8, top: 8, background: 'none', border: 'none', color: '#827e99', cursor: 'pointer' }}
             >
               {copiedCmd === 'daemon-cmd' ? <IconCheck size={14} color="#00ff88" /> : <IconCopy size={14} />}
@@ -225,32 +224,32 @@ export default function TerminalGuidePage() {
         {[
           {
             title: 'Check Engine, Chain & Wallet',
-            cmd: 'python -m api.cli status',
+            cmd: 'mintobaby status',
             desc: 'Shows your encrypted wallet address and balance, current Robinhood Chain block height, and RPC health.'
           },
           {
             title: 'Execute a Direct Mint',
-            cmd: 'python -m api.cli mint 0xContract --qty 1 --value 0.05',
+            cmd: 'mintobaby mint 0xContract --qty 1 --value 0.05',
             desc: 'Scans the contract, simulates the mint, signs with your local key, broadcasts with live gas, and waits for the receipt.'
           },
           {
             title: 'Probe & Scan Contract Specs',
-            cmd: 'python -m api.cli scan 0xContractAddress',
+            cmd: 'mintobaby scan 0xContractAddress',
             desc: 'Reads name, price, SeaDrop stage, phase status, timing, and per-wallet limits straight from the chain.'
           },
           {
             title: 'Schedule a Block-Accurate Mint',
-            cmd: 'python -m api.cli schedule 0xContract --time 2026-09-12T16:00:00Z',
+            cmd: 'mintobaby schedule 0xContract --time 2026-09-12T16:00:00Z',
             desc: 'Arms a trigger that fires the mint the instant the phase opens — auto-detects the on-chain open time when --time is omitted.'
           },
           {
             title: 'List & Cancel Armed Schedules',
-            cmd: 'python -m api.cli schedules',
-            desc: 'Reads the shared schedule store used by the engine and the daemon. Cancel with: python -m api.cli cancel <id>'
+            cmd: 'mintobaby schedules',
+            desc: 'Reads the shared schedule store used by the engine and the daemon. Cancel with: mintobaby cancel <id>'
           },
           {
             title: 'Run the Background Daemon',
-            cmd: 'python -m api.cli daemon --auto-gas',
+            cmd: 'mintobaby daemon --auto-gas',
             desc: 'Headless execution engine: watches armed schedules, fires them at T0, and streams results to Telegram.'
           }
         ].map((item, idx) => (

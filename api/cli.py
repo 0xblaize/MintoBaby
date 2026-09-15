@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 MintoBaby CLI ⚡ — NFT Sniper for Robinhood Chain
-Run from any terminal: python cli.py <command>
+Run from any terminal: mintobaby <command>
 """
 from __future__ import annotations
 
@@ -176,11 +176,11 @@ def scan(contract: str = typer.Argument(..., help="NFT contract address (0x...)"
     console.print(Panel(grid, title=f"[{title_color}]Contract Scan Result[/{title_color}]", box=box.ROUNDED))
 
     if r.is_live:
-        console.print(f"[{ACCENT}]Mint is LIVE. Run:[/{ACCENT}] [bold]python cli.py mint {contract}[/bold]")
+        console.print(f"[{ACCENT}]Mint is LIVE. Run:[/{ACCENT}] [bold]mintobaby mint {contract}[/bold]")
     elif r.on_chain_start_time_ms:
         console.print(
             f"[{WARNING}]Opens in {_countdown(r.on_chain_start_time_ms)}. "
-            f"Schedule with:[/{WARNING}] [bold]python cli.py schedule {contract}[/bold]"
+            f"Schedule with:[/{WARNING}] [bold]mintobaby schedule {contract}[/bold]"
         )
 
 
@@ -414,7 +414,7 @@ def schedules():
     from api.services.scheduler import read_records
     records = read_records()
     if not records:
-        console.print(f"[{DIM}]No schedules found. Create one with:[/{DIM}] [bold]python cli.py schedule 0xContract[/bold]")
+        console.print(f"[{DIM}]No schedules found. Create one with:[/{DIM}] [bold]mintobaby schedule 0xContract[/bold]")
         return
     table = Table(title="MintoBaby Schedules", box=box.ROUNDED)
     table.add_column("ID", style=DIM, no_wrap=True)
@@ -457,7 +457,7 @@ def cancel(
             full_id = record["id"]
             break
     if not full_id:
-        console.print(f"[{ERROR}]No schedule matches '{schedule_id}'. Run: python cli.py schedules[/{ERROR}]")
+        console.print(f"[{ERROR}]No schedule matches '{schedule_id}'. Run: mintobaby schedules[/{ERROR}]")
         raise typer.Exit(1)
     try:
         response = httpx.delete(f"{api_base}/mint/schedules/{full_id}", timeout=5)
@@ -542,7 +542,7 @@ def whoami():
     """Show the current terminal pairing."""
     pairing = _load_pairing()
     if not pairing:
-        console.print(f"[{WARNING}]Not paired. Run:[/{WARNING}] [bold]python cli.py login --code MINTO-XXXX-XXXX-XXXX[/{bold}]")
+        console.print(f"[{WARNING}]Not paired. Run:[/{WARNING}] [bold]mintobaby login --code MINTO-XXXX-XXXX-XXXX[/bold]")
         return
     console.print(Panel(
         f"[{DIM}]Key:[/{DIM}] {pairing.get('code')}\n"
@@ -589,7 +589,7 @@ def setup():
         console.print(f"[{ACCENT}]✓ New wallet:[/{ACCENT}] {w['address']}")
         console.print(f"[{DIM}]  Fund it on Robinhood Chain before minting. Key encrypted in {WALLET_FILE}[/]")
     else:
-        console.print(f"[{DIM}]  Skipped — import later with:[/] [bold]python cli.py wallet import[/]")
+        console.print(f"[{DIM}]  Skipped — import later with:[/] [bold]mintobaby wallet import[/]")
 
     # 4. Pairing
     pairing = _load_pairing()
@@ -617,7 +617,7 @@ def setup():
             console.print(f"[{ERROR}]✗ Pairing failed: {exc}[/]")
             ok = False
     else:
-        console.print(f"[{DIM}]  Skipped — pair later with:[/] [bold]python cli.py login --code MINTO-...[/]")
+        console.print(f"[{DIM}]  Skipped — pair later with:[/] [bold]mintobaby login --code MINTO-...[/]")
 
     if ok:
         console.print(f"\n[{ACCENT}]Setup complete — ready to snipe. ⚡[/]")
@@ -658,7 +658,7 @@ def daemon(
     if pairing:
         console.print(f"[{ACCENT}]●[/{ACCENT}] Daemon paired as {pairing.get('email') or pairing.get('code')}")
     else:
-        console.print(f"[{WARNING}]Running unpaired (local schedules only). Pair with: python cli.py login --code MINTO-...[/{WARNING}]")
+        console.print(f"[{WARNING}]Running unpaired (local schedules only). Pair with: mintobaby login --code MINTO-...[/{WARNING}]")
     if not auto_gas:
         console.print(f"[{DIM}]Note: gas price is always read from the chain at broadcast time (safety).[/]")
 
@@ -760,7 +760,7 @@ def wallet_solana_show():
     _banner()
     raw = _load_wallet_data(SOLANA_WALLET_FILE)
     if not raw:
-        console.print(f"[{WARNING}]No Solana wallet found. Run: python -m api.cli wallet solana-generate[/{WARNING}]")
+        console.print(f"[{WARNING}]No Solana wallet found. Run: mintobaby wallet solana-generate[/{WARNING}]")
         return
     async def _run():
         balance = await ChainService(NETWORKS["solana"]["rpc"], None, "solana").get_balance(raw["address"])
@@ -787,7 +787,7 @@ def wallet_show():
     async def _run():
         raw = _load_wallet()
         if not raw:
-            console.print(f"[{WARNING}]No wallet found. Run: python cli.py wallet generate[/{WARNING}]")
+            console.print(f"[{WARNING}]No wallet found. Run: mintobaby wallet generate[/{WARNING}]")
             return
         chain   = _chain()
         balance = await chain.get_balance(raw["address"])

@@ -44,14 +44,20 @@ npm run dev
 cd web && npm run dev
 ```
 
-Terminal pairing (same key as Telegram):
+Terminal pairing for customers (one-line installer — no repo knowledge needed):
 
 ```bash
-.venv/bin/python -m api.cli setup
-.venv/bin/python -m api.cli login --code MINTO-XXXX-XXXX-XXXX
-.venv/bin/python -m api.cli scan 0xContract
-.venv/bin/python -m api.cli daemon --auto-gas     # headless executor
+curl -fsSL https://raw.githubusercontent.com/0xblaize/MintoBaby/main/install.sh | bash
+
+mintobaby setup          # guided: engine URL, chain check, wallet, pairing
+mintobaby login --code MINTO-XXXX-XXXX-XXXX
+mintobaby scan 0xContract
+mintobaby mint 0xContract --qty 1 --value 0.05
+mintobaby schedule 0xContract --time 2026-09-12T16:00:00Z
+mintobaby daemon --auto-gas
 ```
+
+The installer clones to `~/.mintobaby/cli`, builds its own venv, generates a **per-machine** `ENCRYPTION_SECRET` into `~/.mintobaby/cli/.env`, and symlinks `mintobaby` into `~/.local/bin`. Re-running it updates in place and keeps the user's `.env`. Developers working on the repo itself can still run `python -m api.cli …` from the project venv.
 
 ## Checks
 

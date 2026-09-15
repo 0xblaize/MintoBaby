@@ -117,7 +117,7 @@ export default function ProfilePage() {
             {pairBadge('cli')}
           </div>
           <div style={{ fontSize: 12, color: 'var(--mb-muted)', lineHeight: 1.6, marginBottom: 14 }}>
-            {code ? <>Run <span className="mb-mono">python -m api.cli login --code {code}</span> {pairing.cli ? '· Paired ✓' : ''}</> : 'Requires an activation key.'}
+            {code ? <>Run <span className="mb-mono">mintobaby login --code {code}</span> {pairing.cli ? '· Paired ✓' : ''}</> : 'Requires an activation key.'}
           </div>
           <Button block variant="ghost" size="sm" onClick={() => navigate('/terminal-guide')}>View Guide</Button>
         </Card>
