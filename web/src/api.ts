@@ -110,8 +110,15 @@ async function req<T>(path: string, options?: RequestInit): Promise<T> {
   return body as T;
 }
 
+export interface PaymentConfig {
+  methods: { crypto: boolean; stripe: boolean };
+  default: 'crypto' | 'stripe' | null;
+  confirmations: number;
+}
+
 export const api = {
   health: (): Promise<HealthResponse> => req('/health'),
+  paymentConfig: (): Promise<PaymentConfig> => req('/subscriptions/config'),
 
   // Activation & Auth
   activateKey: (code: string, email?: string): Promise<{ success: boolean; message: string; code: string }> =>

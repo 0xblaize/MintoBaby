@@ -23,8 +23,23 @@ export default function SubscribePage() {
   const [loadingAction, setLoadingAction] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [infoMsg, setInfoMsg] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'crypto'>('stripe');
+  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'crypto'>('crypto');
+  const [methods, setMethods] = useState<{ crypto: boolean; stripe: boolean }>({ crypto: false, stripe: false });
   const [transactionHash, setTransactionHash] = useState('');
+
+  // Load which payment rails are actually configured; default to crypto when available.
+  useEffect(() => {
+    let alive = true;
+    api.paymentConfig()
+      .then(cfg => {
+        if (!alive) return;
+        setMethods(cfg.methods);
+        if (cfg.methods.crypto) setPaymentMethod('crypto');
+        else if (cfg.methods.stripe) setPaymentMethod('stripe');
+      })
+      .catch(() => { /* engine offline — keep crypto selected */ });
+    return () => { alive = false; };
+  }, []);
   const [cryptoQuote, setCryptoQuote] = useState<{ paymentAddress: string; amountUsd: number; amountEthEstimate?: string | null; instructions?: string } | null>(null);
   const [stripeWaitMsg, setStripeWaitMsg] = useState('');
 
@@ -425,7 +440,12 @@ export default function SubscribePage() {
             </div>
 
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-              {(['stripe', 'crypto'] as const).map((method) => (
+              {(['crypto', 'stripe'] as const).filter(m => methods[m]).length === 0 && (
+                <div style={{ flex: 1, background: '#1a1925', border: '1px solid #2a2840', borderRadius: 8, padding: '10px', color: '#9896b0', fontSize: 12, textAlign: 'center' }}>
+                  Payments not configured yet — an admin must set PAYMENT_RECIPIENT (crypto) or Stripe keys.
+                </div>
+              )}
+              {(['crypto', 'stripe'] as const).filter(m => methods[m]).map((method) => (
                 <button
                   key={method}
                   type="button"
@@ -444,6 +464,7 @@ export default function SubscribePage() {
                   }}
                 >
                   {method === 'stripe' ? 'Card · Stripe' : 'Crypto · Robinhood'}
+                  {method === 'crypto' && !methods.stripe ? ' (only method)' : ''}
                 </button>
               ))}
             </div>

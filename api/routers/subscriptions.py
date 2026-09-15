@@ -51,6 +51,19 @@ def _validate_request(plan: str, billing_cycle: str, payment_method: str):
         raise HTTPException(status_code=400, detail="Unsupported payment method.")
 
 
+@router.get("/config")
+async def payment_config():
+    """Which payment methods are actually wired up right now."""
+    return {
+        "methods": {
+            "crypto": bool(settings.payment_recipient),
+            "stripe": bool(settings.stripe_secret_key),
+        },
+        "default": "crypto" if settings.payment_recipient else ("stripe" if settings.stripe_secret_key else None),
+        "confirmations": settings.payment_confirmations,
+    }
+
+
 @router.post("/checkout")
 async def create_checkout(req: CheckoutRequest, request: Request):
     _require_user(req.activationCode)
