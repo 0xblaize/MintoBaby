@@ -28,5 +28,13 @@
     "typescript": "^5.7.3",
     "vitest": "^3.0.8",
     "wrangler": "^4.123.0"
+  },
+  "allowScripts": {
+    "better-sqlite3@11.10.0": true,
+    "bufferutil@4.1.0": true,
+    "esbuild@0.28.2": true,
+    "esbuild@0.28.1": true,
+    "workerd@1.20260811.1": true,
+    "utf-8-validate@6.0.6": true
   }
 }

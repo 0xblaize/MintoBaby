@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { Config } from './config.js';
-import { CursorStore } from './chain/cursor-store.js';
+import type { IStore } from './chain/memory-store.js';
 import type { TelegramClient } from './telegram/client.js';
 
 const MAX_BODY_BYTES = 256 * 1024;
@@ -24,7 +24,8 @@ async function readBody(request: IncomingMessage): Promise<string> {
   });
 }
 
-export function startWebhookServer(config: Config, store: CursorStore, telegram?: TelegramClient): ReturnType<typeof createServer> {
+export function startWebhookServer(config: Config, store?: IStore, telegram?: TelegramClient): ReturnType<typeof createServer> {
+  void store; void telegram;
   const server = createServer(async (request, response) => {
     setCorsHeaders(response);
 

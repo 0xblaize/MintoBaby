@@ -5,6 +5,7 @@ import hmac
 import os
 import random
 import string
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -25,6 +26,36 @@ USERS_FILE = MINTOBABY_DIR / "users.json"
 KEYS_FILE = MINTOBABY_DIR / "activation_keys.json"
 
 GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo"
+
+SESSION_TTL_SECONDS = 7 * 24 * 3600
+
+
+def make_session_token(identity: str, is_admin: bool = False) -> str:
+    """HMAC-signed stateless session token: base64url(payload).base64url(sig)."""
+    payload = json.dumps(
+        {"id": identity, "admin": is_admin, "exp": int(time.time()) + SESSION_TTL_SECONDS},
+        separators=(",", ":"),
+    ).encode()
+    key = hashlib.sha256(settings.encryption_secret.encode()).digest()
+    signature = hmac.new(key, base64.urlsafe_b64encode(payload), hashlib.sha256).digest()
+    return f"{base64.urlsafe_b64encode(payload).decode()}.{base64.urlsafe_b64encode(signature).decode()}"
+
+
+def read_session_token(token: str) -> dict | None:
+    """Validate an issued session token. Returns payload or None."""
+    try:
+        payload_b64, signature_b64 = token.split(".", 1)
+        key = hashlib.sha256(settings.encryption_secret.encode()).digest()
+        expected = hmac.new(key, payload_b64.encode(), hashlib.sha256).digest()
+        provided = base64.urlsafe_b64decode(signature_b64 + "==" * (-len(signature_b64) % 4))
+        if not hmac.compare_digest(expected, provided):
+            return None
+        payload = json.loads(base64.urlsafe_b64decode(payload_b64 + "==" * (-len(payload_b64) % 4)))
+        if int(payload.get("exp", 0)) < time.time():
+            return None
+        return payload
+    except (ValueError, TypeError, KeyError):
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -124,6 +155,10 @@ def _verify_password(password: str, encoded: str) -> bool:
         return False
 
 
+def _public_user(user: dict) -> dict:
+    return {key: value for key, value in user.items() if key != "password_hash"}
+
+
 class ActivationRequest(BaseModel):
     code: str
     email: str | None = None
@@ -132,6 +167,8 @@ class ActivationRequest(BaseModel):
 
 class VerifyRequest(BaseModel):
     code: str
+    service: str | None = None      # telegram | cli | web — marks the pairing flag
+    actor: str | None = None        # who paired (TG user id, hostname, etc.)
 
 
 # ---------------------------------------------------------------------------
@@ -210,13 +247,8 @@ async def google_login(req: GoogleTokenRequest):
 
     return {
         "success": True,
-        "user": {
-            "email": user["email"],
-            "name": user["name"],
-            "picture": user["picture"],
-            "activation_code": user["activation_code"],
-            "sub": user["sub"],
-        },
+        "token": make_session_token(user["sub"]),
+        "user": _public_user(user),
     }
 
 
@@ -231,7 +263,8 @@ async def email_login(req: EmailLoginRequest):
     # Admin credentials are environment-only and must never become a normal user.
     if settings.mintobaby_admin_email and email == settings.mintobaby_admin_email.strip().lower():
         if hmac.compare_digest(req.password, settings.mintobaby_admin_password or ""):
-            return {"success": True, "user": {"email": email, "name": "Administrator", "picture": "", "activation_code": "", "sub": "admin", "isAdmin": True}}
+            token = make_session_token(email, is_admin=True)
+            return {"success": True, "token": token, "user": {"email": email, "name": "Administrator", "picture": "", "activation_code": "", "sub": "admin", "isAdmin": True}}
         raise HTTPException(status_code=401, detail="Invalid administrator credentials.")
 
     users = _load_users()
@@ -246,20 +279,23 @@ async def email_login(req: EmailLoginRequest):
         user = {"sub": f"email:{email}", "email": email, "name": email.split("@", 1)[0], "picture": "", "activation_code": _unique_activation_code(users), "password_hash": _hash_password(req.password), "created_at": now_iso, "last_login": now_iso}
         users[user["sub"]] = user
     _save_users(users)
-    return {"success": True, "user": {"email": user["email"], "name": user["name"], "picture": user["picture"], "activation_code": user["activation_code"], "sub": user["sub"]}}
+    token = make_session_token(user["sub"])
+    return {"success": True, "token": token, "user": _public_user(user)}
 
 
 @router.post("/admin")
 async def admin_login(req: AdminLoginRequest):
-    if not settings.mintobaby_admin_email or not settings.mintobaby_admin_password or req.email.strip().lower() != settings.mintobaby_admin_email.lower() or req.password != settings.mintobaby_admin_password:
+    if not settings.mintobaby_admin_email or not settings.mintobaby_admin_password or not hmac.compare_digest(req.email.strip().lower(), settings.mintobaby_admin_email.strip().lower()) or not hmac.compare_digest(req.password, settings.mintobaby_admin_password):
         raise HTTPException(status_code=401, detail="Invalid administrator credentials.")
-    return {"success": True, "user": {"email": req.email.strip().lower(), "name": "Administrator", "picture": "", "activation_code": "", "sub": "admin", "isAdmin": True}}
+    email = req.email.strip().lower()
+    return {"success": True, "token": make_session_token(email, is_admin=True), "user": {"email": email, "name": "Administrator", "picture": "", "activation_code": "", "sub": "admin", "isAdmin": True}}
 
 
 @router.get("/me")
 async def get_me(code: str = Query(..., description="MINTO-XXXX-XXXX-XXXX activation code")):
     """
-    Look up a user by their activation code and return their full profile.
+    Look up a user by their activation code and return their full profile,
+    including subscription state and tool pairing flags.
     """
     code = code.strip().upper()
     if not code.startswith("MINTO-"):
@@ -275,15 +311,18 @@ async def get_me(code: str = Query(..., description="MINTO-XXXX-XXXX-XXXX activa
     if matched_user is None:
         raise HTTPException(status_code=404, detail="No user found for the provided activation code.")
 
+    keys = _load_keys()
+    key_record = keys.get(code, {})
     return {
         "user": {
-            "email": matched_user.get("email"),
-            "name": matched_user.get("name"),
-            "picture": matched_user.get("picture"),
-            "activation_code": matched_user.get("activation_code"),
-            "sub": matched_user.get("sub"),
+            **_public_user(matched_user),
             "created_at": matched_user.get("created_at"),
             "last_login": matched_user.get("last_login"),
+            "subscription": matched_user.get("subscription"),
+            "pairings": {
+                "telegram": bool(key_record.get("telegram_paired")),
+                "cli": bool(key_record.get("cli_paired")),
+            },
         }
     }
 
@@ -295,19 +334,30 @@ async def activate_user(req: ActivationRequest):
         raise HTTPException(status_code=400, detail="Invalid activation code format. Must start with MINTO-")
 
     keys = _load_keys()
+    if code not in keys:
+        # Allow redeeming the caller's own account key (issued at sign-up).
+        users = _load_users()
+        owned = any(value.get("activation_code") == code for value in users.values())
+        if not owned:
+            raise HTTPException(
+                status_code=404,
+                detail="Unknown activation key. Keys are issued by an administrator or created when you sign in.",
+            )
+
     keys[code] = {
         "code": code,
-        "email": req.email,
-        "service": req.service,
+        "email": req.email or keys.get(code, {}).get("email"),
+        "service": req.service or keys.get(code, {}).get("service", "web"),
         "active": True,
-        "telegram_paired": True,
-        "cli_paired": True,
+        "activated_at": datetime.now(timezone.utc).isoformat(),
+        "telegram_paired": keys.get(code, {}).get("telegram_paired", False),
+        "cli_paired": keys.get(code, {}).get("cli_paired", False),
     }
     _save_keys(keys)
 
     return {
         "success": True,
-        "message": "Single Activation Key activated successfully for BOTH Telegram Bot and CLI Terminal.",
+        "message": "Activation Key activated for Telegram Bot and CLI Terminal.",
         "code": code,
         "details": keys[code],
     }
@@ -315,11 +365,80 @@ async def activate_user(req: ActivationRequest):
 
 @router.post("/verify")
 async def verify_code(req: VerifyRequest):
+    """
+    Strict activation-key verification. A code is valid only if:
+      - it was issued by an administrator and is still active, or
+      - it is the activation code of a real signed-up user account.
+    Passcode guessing and format-only checks are rejected.
+    """
     code = req.code.strip().upper()
+    if not code.startswith("MINTO-"):
+        raise HTTPException(status_code=404, detail="Invalid activation code.")
+
     keys = _load_keys()
-    if code in keys and keys[code].get("active"):
-        return {"valid": True, "details": keys[code]}
-    # If key is valid format, auto-provision
-    if code.startswith("MINTO-"):
-        return {"valid": True, "details": {"code": code, "telegram_paired": True, "cli_paired": True}}
-    raise HTTPException(status_code=404, detail="Invalid or expired activation code.")
+    users = _load_users()
+    owner = next((u for u in users.values() if u.get("activation_code") == code), None)
+    record = keys.get(code)
+
+    is_valid = bool(record and record.get("active")) or owner is not None
+    if not is_valid:
+        raise HTTPException(status_code=404, detail="Invalid or expired activation code.")
+
+    # A key unlocks the WEB console only when an administrator issued it.
+    # A user's own account code pairs Telegram/CLI but never bypasses payment.
+    web_unlock = bool(record and record.get("active"))
+
+    # Record tool pairing when a service verifies through this endpoint.
+    service = (req.service or "").strip().lower()
+    if service in {"telegram", "cli"}:
+        record = record or {
+            "code": code,
+            "email": owner.get("email") if owner else None,
+            "service": "web",
+            "active": True,
+            "activated_at": datetime.now(timezone.utc).isoformat(),
+            "telegram_paired": False,
+            "cli_paired": False,
+        }
+        flag = "telegram_paired" if service == "telegram" else "cli_paired"
+        record[flag] = True
+        record[f"{flag}_actor"] = req.actor
+        record[f"{flag}_at"] = datetime.now(timezone.utc).isoformat()
+        keys[code] = record
+        _save_keys(keys)
+
+    return {
+        "valid": True,
+        "web_unlock": web_unlock,
+        "details": {
+            "code": code,
+            "email": (record or {}).get("email") or (owner or {}).get("email"),
+            "telegram_paired": bool((record or {}).get("telegram_paired")),
+            "cli_paired": bool((record or {}).get("cli_paired")),
+            "owner": owner is not None,
+            "web_unlock": web_unlock,
+        },
+    }
+
+
+@router.get("/access")
+async def check_access(code: str = Query(..., description="MINTO-XXXX-XXXX-XXXX activation code")):
+    """
+    Server-authoritative web-console access decision:
+    active paid subscription OR active admin-issued key.
+    """
+    code = code.strip().upper()
+    users = _load_users()
+    user = next((u for u in users.values() if u.get("activation_code") == code), None)
+    subscription = user.get("subscription") if user else None
+    keys = _load_keys()
+    record = keys.get(code)
+    has_key = bool(record and record.get("active"))
+    active = bool(subscription and subscription.get("active")) or has_key
+    return {
+        "active": active,
+        "via_subscription": bool(subscription and subscription.get("active")),
+        "via_key": has_key,
+        "subscription": subscription,
+        "user_found": user is not None,
+    }

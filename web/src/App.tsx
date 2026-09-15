@@ -11,6 +11,7 @@ import ScanPage from './pages/ScanPage';
 import MintPage from './pages/MintPage';
 import SchedulePage from './pages/SchedulePage';
 import CopyMintPage from './pages/CopyMintPage';
+import AdminPage from './pages/AdminPage';
 import SchedulesPage from './pages/SchedulesPage';
 import WalletPage from './pages/WalletPage';
 import MintoBabyStudio from './pages/MintoBabyStudio';
@@ -45,6 +46,7 @@ export default function App() {
           <Route path="copymint" element={<CopyMintPage />} />
           <Route path="schedules" element={<SchedulesPage />} />
           <Route path="wallet" element={<WalletPage />} />
+          <Route path="admin" element={<AdminPage />} />
         </Route>
 
         {/* Unknown routes fall back to the site */}

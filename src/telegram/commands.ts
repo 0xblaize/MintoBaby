@@ -13,6 +13,26 @@ const publicAddressRegex = /^0x[a-fA-F0-9]{40}$/i;
 const privateKeyRegex = /^(?:0x)?[a-fA-F0-9]{64}$/i;
 type PriceStatus = 'known' | 'unavailable';
 
+async function verifyActivationKey(apiBaseUrl: string, code: string, actor: string): Promise<{ ok: boolean; detail?: string; email?: string }> {
+  try {
+    const response = await fetch(`${apiBaseUrl}/auth/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, service: 'telegram', actor })
+    });
+    if (response.ok) {
+      const body = await response.json() as { details?: { email?: string } };
+      return { ok: true, email: body?.details?.email };
+    }
+    if (response.status === 404) return { ok: false, detail: 'That activation key is unknown, revoked, or expired.' };
+    const body = await response.json().catch(() => null) as { detail?: string } | null;
+    return { ok: false, detail: body?.detail ?? `Activation service responded with ${response.status}.` };
+  } catch (error) {
+    return { ok: false, detail: `Cannot reach the activation service at ${apiBaseUrl}. ${error instanceof Error ? error.message : String(error)}` };
+  }
+}
+
+
 function getPriceStatus(pricePerNft: bigint, metadata?: Record<string, string | undefined>): PriceStatus {
   if (metadata?.priceStatus === 'known' || metadata?.priceStatus === 'unavailable') {
     return metadata.priceStatus;
@@ -66,6 +86,7 @@ export type UserState = {
     | { type: 'withdraw'; destination?: `0x${string}`; amount?: string }
     | { type: 'importkey' }
     | { type: 'verifyaccess' }
+    | { type: 'activate' }
     | { type: 'adduser' }
     | { type: 'removeuser' }
     | { type: 'automint'; contract?: `0x${string}`; quantity?: number; valueEth?: string }
@@ -120,7 +141,7 @@ export class CommandHandler {
   }
 
   private isFreeCommand(command: string): boolean {
-    return ['/start', '/menu', '/help', '/pay', '/payment', '/verifyaccess', '/verify', '/cancel', '/adduser', '/removeuser', '/listusers'].includes(command.toLowerCase());
+    return ['/start', '/menu', '/help', '/pay', '/payment', '/verifyaccess', '/verify', '/activate', '/cancel', '/adduser', '/removeuser', '/listusers'].includes(command.toLowerCase());
   }
 
   private async hasPaidAccess(userKey: string, isAdmin: boolean): Promise<boolean> {
@@ -147,6 +168,7 @@ export class CommandHandler {
       `Once sent, tap the button below and drop your transaction hash to get instant access. ⬇️`,
       [
         [{ text: '✅ I\'ve Paid — Verify Transaction', callback_data: 'cmd:verifyaccess' }],
+        [{ text: '🔑 I Have an Activation Key', callback_data: 'cmd:activate' }],
         [{ text: '📖 How It Works (/help)', callback_data: 'cmd:help' }]
       ]
     );
@@ -459,7 +481,11 @@ export class CommandHandler {
       const callbackUser = String(update.callback_query.from.id);
       const callbackUsername = (update.callback_query.from as { username?: string }).username;
       await this.store.recordUsername?.(callbackUser, callbackUsername);
-      if (!(await this.hasPaidAccess(callbackUser, this.config.adminUserIds.includes(callbackUser)))) {
+      // Pairing/unlock actions must stay reachable before access is granted.
+      const unlockCallbacks = ['cmd:verifyaccess', 'cmd:activate', 'cmd:payaccess', 'cmd:help', 'cmd:cancel'];
+      const data = update.callback_query.data ?? '';
+      const isUnlockCallback = unlockCallbacks.includes(data) || data.startsWith('cmd:help');
+      if (!isUnlockCallback && !(await this.hasPaidAccess(callbackUser, this.config.adminUserIds.includes(callbackUser)))) {
         await this.telegram.answerCallbackQuery(update.callback_query.id);
         if (update.callback_query.message?.chat.id !== undefined) await this.sendPaymentInstructions(update.callback_query.message.chat.id);
         return;
@@ -646,6 +672,22 @@ export class CommandHandler {
           `You can now use the wallet and auto-mint features.`,
           this.getMainMenuButtons()
         );
+        break;
+      }
+
+      case '/activate': {
+        if (!argument) {
+          state.flow = { type: 'activate' };
+          await this.telegram.sendMessage(
+            chatId,
+            `🔑 <b>Pair This Bot With Your MintoBaby Account</b>\n\n` +
+            `Send your activation key (shown on the website after you sign in):\n\n` +
+            `<code>MINTO-XXXX-XXXX-XXXX</code>\n\n` +
+            `One key pairs Telegram and the Terminal CLI. Or send /cancel.`
+          );
+          break;
+        }
+        await this.handleActivation(chatId, userKey, username, argument);
         break;
       }
 
@@ -1037,6 +1079,7 @@ export class CommandHandler {
           chatId,
           `📖 <b>Mintobot Command Guide (Robinhood Chain 4663)</b>\n\n` +
           `💳 <b>Access:</b>\n` +
+          `• <b>/activate &lt;KEY&gt;</b> — pair this bot with your MintoBaby activation key\n` +
           `• <b>/pay</b> — view the one-time $${this.config.paymentUsdAmount.toFixed(2)} access payment instructions\n` +
           `• <b>/verifyaccess &lt;tx&gt;</b> — verify ETH or WETH payment on-chain\n\n` +
           `🚀 <b>Sniping & Drops:</b>\n` +
@@ -1263,6 +1306,12 @@ export class CommandHandler {
       return true;
     }
 
+    if (state.flow.type === 'activate') {
+      state.flow = undefined;
+      await this.handleActivation(chatId, userKey, undefined, text);
+      return true;
+    }
+
     if (state.flow.type === 'verifyaccess') {
       // Accept raw tx hash or a Blockscout URL containing the hash
       const match = text.match(/(?:0x|0X)?[a-fA-F0-9]{64}/);
@@ -1395,6 +1444,40 @@ export class CommandHandler {
     return false;
   }
 
+  private async handleActivation(chatId: number, userKey: string, username: string | undefined, rawCode: string): Promise<void> {
+    const code = rawCode.trim().toUpperCase();
+    if (!/^MINTO-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(code)) {
+      await this.telegram.sendMessage(
+        chatId,
+        `⚠️ That doesn't look like an activation key.\n\nExpected format: <code>MINTO-XXXX-XXXX-XXXX</code>\n\nSend /activate to try again.`
+      );
+      return;
+    }
+    await this.telegram.sendMessage(chatId, `🔍 <b>Verifying activation key…</b>\n<code>${code}</code>`);
+    const result = await verifyActivationKey(this.config.apiBaseUrl, code, userKey);
+    if (!result.ok) {
+      await this.telegram.sendMessage(
+        chatId,
+        `❌ <b>Activation failed</b>\n\n${result.detail}\n\nGet your key from the MintoBaby website (Profile → Activation Key), or buy access with /pay.`,
+        [
+          [{ text: '🔑 Try Another Key', callback_data: 'cmd:activate' }],
+          [{ text: '💳 Pay for Access', callback_data: 'cmd:payaccess' }]
+        ]
+      );
+      return;
+    }
+    await this.store.grantEntitlement?.(userKey, username, 'activation', code);
+    await this.telegram.sendMessage(
+      chatId,
+      `✅ <b>Telegram Paired!</b>\n\n` +
+      `• <b>Key:</b> <code>${code}</code>\n` +
+      `• <b>Account:</b> ${result.email ?? 'activation key holder'}\n` +
+      `• <b>Access:</b> 🟢 Active — full Telegram + CLI pairing\n\n` +
+      `Drop any NFT contract address to stage your first auto-mint.`,
+      this.getMainMenuButtons(this.config.adminUserIds.includes(userKey))
+    );
+  }
+
   private async requestAutoMintApproval(
     chatId: number,
     userKey: string,
@@ -1493,6 +1576,22 @@ export class CommandHandler {
       return;
     }
 
+    if (callback.data === 'cmd:activate') {
+      state.flow = { type: 'activate' };
+      await this.telegram.sendMessage(
+        chatId,
+        `🔑 <b>Pair With Your Activation Key</b>\n\n` +
+        `Send your MintoBaby activation key:\n\n<code>MINTO-XXXX-XXXX-XXXX</code>\n\n` +
+        `(Find it on the website → Profile) Or send /cancel.`
+      );
+      return;
+    }
+
+    if (callback.data === 'cmd:payaccess') {
+      await this.sendPaymentInstructions(chatId);
+      return;
+    }
+
     if (callback.data === 'cmd:importkey') {
       state.flow = { type: 'importkey' };
       await this.telegram.sendMessage(
@@ -1520,7 +1619,7 @@ export class CommandHandler {
     }
 
     const wallet = await this.getUserWallet(userKey);
-    if (!wallet && callback.data !== 'cmd:help' && callback.data !== 'cmd:cancel' && callback.data !== 'cmd:verifyaccess') {
+    if (!wallet && !['cmd:help', 'cmd:cancel', 'cmd:verifyaccess', 'cmd:activate', 'cmd:payaccess'].includes(callback.data ?? '')) {
       await this.telegram.sendMessage(
         chatId,
         `⚠️ You haven't connected a wallet yet. Choose an option below to start:`,

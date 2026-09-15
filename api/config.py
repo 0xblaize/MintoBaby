@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     payment_confirmations: int = 3
     api_host:          str = "0.0.0.0"
     api_port:          int = 8000
+    api_url:           str = "http://localhost:8000"
+    web_url:           str = "http://localhost:5173"
 
 
 settings = Settings()

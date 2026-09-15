@@ -159,7 +159,7 @@ export default function Dashboard() {
                   <div style={{ fontSize: 11, color: 'var(--mb-muted)' }}>{meta.detail}{chainId ? ` · id ${chainId}` : ''}</div>
                 </div>
               </div>
-              <StatusBadge status={online ? 'known' : 'unavailable'} />
+              <StatusBadge status={n === 'solana' ? 'not_open' : online ? 'known' : 'unavailable'} />
             </Card>
           );
         })}
@@ -176,7 +176,7 @@ export default function Dashboard() {
       <div style={{ marginBottom: 8 }} className="mb-section-label">Operations</div>
       <div className="mb-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))' }}>
         <OpCard title="Contract Scanner" desc="Probe collection name, price, phase, timing, and per-wallet limits straight from the chain." path="/scan" color="var(--mb-cyan)" icon={<IconSearch size={17} />} />
-        <OpCard title="Direct Mint" desc="Review a live mint and prepare execution. Automated signing runs on the bot engine." path="/mint" color="var(--mb-green)" icon={<IconBolt size={17} />} />
+        <OpCard title="Direct Mint · EVM" desc="Review a live mint and prepare execution. Automated signing runs on the bot engine." path="/mint" color="var(--mb-green)" icon={<IconBolt size={17} />} />
         <OpCard title="Drop Scheduler" desc="Stage block-accurate mint triggers for upcoming phases." path="/schedule" color="var(--mb-gold)" icon={<IconClock size={17} />} />
         <OpCard title="Active Schedules" desc="View, monitor, and cancel armed drop triggers." path="/schedules" color="var(--mb-violet)" icon={<IconList size={17} />} />
         <OpCard title="Connected Wallet" desc="Link MetaMask, Rabby, or WalletConnect. Keys never leave your wallet." path="/wallet" color="#b36ef5" icon={<IconWallet size={17} />} />

@@ -30,7 +30,9 @@ const envSchema = z.object({
   WETH_ADDRESS: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
   PAYMENT_USD_AMOUNT: z.coerce.number().positive().default(20),
   PAYMENT_CONFIRMATIONS: z.coerce.bigint().positive().default(3n),
-  ENCRYPTION_SECRET: z.string().min(16).optional().default('mintobot-super-secure-key-robinhood-2026')
+  ENCRYPTION_SECRET: z.string().min(16).optional().default('mintobot-super-secure-key-robinhood-2026'),
+  API_URL: z.string().url().default('http://localhost:8000'),
+  SNIPER_INTERVAL_MS: z.coerce.number().int().min(500).default(2000)
 });
 
 export type Config = {
@@ -64,10 +66,15 @@ export type Config = {
   wethAddress?: `0x${string}`;
   paymentUsdAmount: number;
   paymentConfirmations: bigint;
+  apiBaseUrl: string;
+  sniperIntervalMs: number;
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
-  const values = envSchema.parse(env);
+  const normalized = Object.fromEntries(
+    Object.entries(env).map(([key, value]) => [key, typeof value === 'string' && value.trim() === '' ? undefined : value])
+  );
+  const values = envSchema.parse(normalized);
   let abi: readonly unknown[];
   try {
     const parsed: unknown = JSON.parse(values.CONTRACT_ABI_JSON);
@@ -131,6 +138,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     paymentRecipient: values.PAYMENT_RECIPIENT as `0x${string}` | undefined,
     wethAddress: values.WETH_ADDRESS as `0x${string}` | undefined,
     paymentUsdAmount: values.PAYMENT_USD_AMOUNT,
-    paymentConfirmations: values.PAYMENT_CONFIRMATIONS
+    paymentConfirmations: values.PAYMENT_CONFIRMATIONS,
+    apiBaseUrl: values.API_URL.replace(/\/$/, ''),
+    sniperIntervalMs: values.SNIPER_INTERVAL_MS
   };
 }

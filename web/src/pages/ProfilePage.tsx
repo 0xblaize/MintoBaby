@@ -13,21 +13,26 @@ export default function ProfilePage() {
   const code = getActivationCode();
   const paid = storeSubscriptionActive();
   const [pair, setPair] = useState<PairState>(code ? 'checking' : 'unpaired');
+  const [pairing, setPairing] = useState<{ telegram: boolean; cli: boolean }>({ telegram: false, cli: false });
 
   useEffect(() => {
     if (!code) return;
     let alive = true;
     api.verifyKey(code)
-      .then(r => { if (alive) setPair(r.valid ? 'paired' : 'unpaired'); })
+      .then(r => {
+        if (!alive) return;
+        setPair(r.valid ? 'paired' : 'unpaired');
+        setPairing({ telegram: r.details?.telegram_paired ?? false, cli: r.details?.cli_paired ?? false });
+      })
       .catch(() => { if (alive) setPair('offline'); });
     return () => { alive = false; };
   }, [code]);
 
-  const pairBadge = (label: string) => {
+  const pairBadge = (tool: 'telegram' | 'cli') => {
     if (!code) return <StatusBadge status="unavailable" />;
     if (pair === 'checking') return <StatusBadge status="unknown" />;
     if (pair === 'offline') return <StatusBadge status="unavailable" />;
-    return <StatusBadge status={pair === 'paired' ? 'known' : 'not_open'} />;
+    return <StatusBadge status={pairing[tool] ? 'known' : 'not_open'} />;
   };
 
   return (
@@ -96,10 +101,10 @@ export default function ProfilePage() {
             <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, fontWeight: 650, color: 'var(--mb-text)' }}>
               <IconTelegram size={16} color="var(--mb-cyan)" /> Telegram Bot
             </span>
-            {pairBadge('bot')}
+            {pairBadge('telegram')}
           </div>
           <div style={{ fontSize: 12, color: 'var(--mb-muted)', lineHeight: 1.6, marginBottom: 14 }}>
-            {code ? <>Send <span className="mb-mono">/activate {code}</span> to the bot.</> : 'Requires an activation key.'}
+            {code ? <>Send <span className="mb-mono">/activate {code}</span> to the bot. {pairing.telegram ? 'Paired ✓' : ''}</> : 'Requires an activation key.'}
           </div>
           <Button block variant="ghost" size="sm" onClick={() => navigate('/telegram-guide')}>View Guide</Button>
         </Card>
@@ -112,7 +117,7 @@ export default function ProfilePage() {
             {pairBadge('cli')}
           </div>
           <div style={{ fontSize: 12, color: 'var(--mb-muted)', lineHeight: 1.6, marginBottom: 14 }}>
-            {code ? <>Run <span className="mb-mono">mintobaby login --code {code}</span></> : 'Requires an activation key.'}
+            {code ? <>Run <span className="mb-mono">python -m api.cli login --code {code}</span> {pairing.cli ? '· Paired ✓' : ''}</> : 'Requires an activation key.'}
           </div>
           <Button block variant="ghost" size="sm" onClick={() => navigate('/terminal-guide')}>View Guide</Button>
         </Card>

@@ -6,7 +6,7 @@ from .config import settings
 from .services.chain import ChainService, NETWORKS
 from .services.executor import ExecutorService
 from .services.scheduler import SchedulerService
-from .routers import wallet, discovery, mint, auth, subscriptions
+from .routers import wallet, discovery, mint, auth, subscriptions, admin
 
 app = FastAPI(
     title="MintoBaby Matrix API",
@@ -22,6 +22,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(admin.router)
 app.include_router(subscriptions.router)
 app.include_router(wallet.router)
 app.include_router(discovery.router)
@@ -42,6 +43,7 @@ async def startup():
         await _tg_notify(msg)
 
     app.state.scheduler = SchedulerService(executor_factory, telegram_notify=telegram_notify)
+    app.state.scheduler.arm_due_after_restart()
 
 
 @app.get("/", include_in_schema=False)

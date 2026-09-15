@@ -57,7 +57,7 @@ export default function ScanPage() {
           <select className="mb-select" style={{ width: 180 }} value={network} onChange={e => setNetwork(e.target.value as NetworkType)}>
             <option value="robinhood">Robinhood Chain</option>
             <option value="ink">Ink L2</option>
-            <option value="solana">Solana</option>
+            <option value="solana" disabled>Solana — soon</option>
           </select>
           <Button onClick={doScan} disabled={loading || !address.trim()}>
             <IconSearch size={14} />

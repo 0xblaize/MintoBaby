@@ -93,6 +93,31 @@ class ChainService:
         self.net_type = net_cfg["type"]
         self.symbol = net_cfg["symbol"]
 
+    async def _json_rpc(self, method: str, params: list, attempts: int = 2, timeout: int = 6) -> Optional[dict | str | int]:
+        """Generic JSON-RPC request returning the raw `result` value."""
+        if self.net_type == "solana":
+            return None
+        for attempt in range(1, attempts + 1):
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        self.rpc_url,
+                        json={"jsonrpc": "2.0", "id": attempt, "method": method, "params": params},
+                        timeout=aiohttp.ClientTimeout(total=timeout),
+                    ) as resp:
+                        if not resp.ok:
+                            continue
+                        body = await resp.json()
+                        if body.get("error"):
+                            continue
+                        if "result" in body:
+                            return body["result"]
+            except Exception:
+                pass
+            if attempt < attempts:
+                await asyncio.sleep(0.15 * attempt)
+        return None
+
     async def eth_call(self, to: str, data: str, attempts: int = 2) -> Optional[str]:
         """Single JSON-RPC eth_call with retry."""
         if self.net_type == "solana":

@@ -1,0 +1,26 @@
+# MintoBaby Cloudflare Worker — deployment config template.
+# Copy to wrangler.toml (gitignored), replace <YOUR_D1_DATABASE_NAME>, then:
+#   wrangler d1 create mintobaby-db   (paste the returned database_id below)
+#   wrangler d1 execute mintobaby-db --file=./migrations/0001_user_wallets.sql --remote
+#   wrangler d1 execute mintobaby-db --file=./migrations/0002_execution_lifecycle.sql --remote
+#   wrangler d1 execute mintobaby-db --file=./migrations/0003_paid_access.sql --remote
+#   npm run deploy && curl https://<worker-url>/set-webhook
+
+name = "mintobaby-sniper"
+main = "src/worker.ts"
+compatibility_date = "2026-09-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mintobaby-db"
+database_id = "<YOUR_D1_DATABASE_ID>"
+
+# Fire the sniper engine every minute (plus /cron for manual triggers).
+[triggers]
+crons = ["* * * * *"]
+
+# Non-secret variables. Secrets: npx wrangler secret put TELEGRAM_BOT_TOKEN (etc.)
+[vars]
+ROBINHOOD_CHAIN_ID = "4663"
+PAYMENT_USD_AMOUNT = "20"
+PAYMENT_CONFIRMATIONS = "3"

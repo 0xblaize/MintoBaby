@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getActivationCode } from '../utils/activation';
+import { api } from '../api';
 import {
   IconTelegram,
   IconCopy,
@@ -29,13 +30,27 @@ export default function TelegramGuidePage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleSimulateActivation = (e: React.FormEvent) => {
+  const [checking, setChecking] = useState(false);
+  const handleSimulateActivation = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (testCode.trim().toUpperCase() === activationCode.trim().toUpperCase()) {
-      setActivated(true);
-      setStatusMsg('Telegram Bot successfully paired and activated for your user account!');
-    } else {
-      setStatusMsg('Invalid activation code. Please check your activation key in your profile.');
+    const code = testCode.trim().toUpperCase();
+    if (!code) return;
+    setChecking(true);
+    try {
+      const res = await api.verifyKey(code);
+      setActivated(res.valid);
+      if (res.valid && res.details?.telegram_paired) {
+        setStatusMsg('Key is valid and already paired with the Telegram bot ✓');
+      } else if (res.valid) {
+        setStatusMsg('Key is valid on the engine — send /activate ' + code + ' in the Telegram chat to pair it.');
+      }
+    } catch (err: any) {
+      setActivated(false);
+      setStatusMsg(err?.message?.includes('404')
+        ? 'Invalid activation code. Check the key in your Profile, or generate one from the Admin Console.'
+        : (err?.message ?? 'Engine unreachable — is the API running?'));
+    } finally {
+      setChecking(false);
     }
   };
 
@@ -239,13 +254,18 @@ export default function TelegramGuidePage() {
           </thead>
           <tbody>
             {[
-              { cmd: '/activate <code>', desc: 'Pair your account with Telegram bot', ex: `/activate ${activationCode}` },
-              { cmd: '/status', desc: 'Check wallet balances & active snipers', ex: '/status' },
-              { cmd: '/mint <chain> <contract> <qty>', desc: 'Stage an approved instant mint', ex: '/mint robinhood 0x123... 2' },
-              { cmd: '/scan <contract>', desc: 'Probe collection state & price specs', ex: '/scan 0x123...' },
-              { cmd: '/stop', desc: 'Pause all active background snipers', ex: '/stop' }
+              { cmd: '/activate <code>', desc: 'Pair this bot with your MintoBaby account (one key)', ex: `/activate ${activationCode || 'MINTO-XXXX-XXXX-XXXX'}` },
+              { cmd: '0xContract (paste)', desc: 'Drop any contract address to stage a fresh on-chain scan', ex: '0x1234…abcd' },
+              { cmd: '/automint <contract>', desc: 'Stage a contract, pick quantity, arm auto-mint', ex: '/automint 0x123…abcd' },
+              { cmd: '/schedules', desc: 'View and cancel all armed auto-mint targets', ex: '/schedules' },
+              { cmd: '/wallet', desc: 'View sniper wallet address and live ETH balance', ex: '/wallet' },
+              { cmd: '/withdraw <0x> [amt]', desc: 'Send ETH back to your cold wallet (or "all")', ex: '/withdraw 0xdead… 0.5' },
+              { cmd: '/sellnft <nft> <id> <to>', desc: 'Transfer or auto-sell a minted NFT', ex: '/sellnft 0x123… 42 0xabc…' },
+              { cmd: '/status', desc: 'Bot, wallet, network, and armed-drop overview', ex: '/status' },
+              { cmd: '/pay  ·  /verifyaccess <tx>', desc: 'One-time access payment + on-chain verification', ex: '/verifyaccess 0xfeed…' },
+              { cmd: '/help', desc: 'Full in-bot command manual', ex: '/help' }
             ].map((row, idx) => (
-              <tr key={row.cmd} style={{ borderBottom: idx !== 4 ? '1px solid rgba(255, 255, 255, 0.04)' : 'none' }}>
+              <tr key={row.cmd} style={{ borderBottom: idx !== 9 ? '1px solid rgba(255, 255, 255, 0.04)' : 'none' }}>
                 <td style={{ padding: '14px 20px', fontFamily: 'monospace', color: '#00ccff', fontWeight: 700 }}>{row.cmd}</td>
                 <td style={{ padding: '14px 20px', color: '#d0d0e5' }}>{row.desc}</td>
                 <td style={{ padding: '14px 20px', fontFamily: 'monospace', color: '#827e99' }}>{row.ex}</td>
@@ -308,7 +328,7 @@ export default function TelegramGuidePage() {
             gap: 8
           }}>
             {activated ? <IconCheck size={16} /> : null}
-            <span>{statusMsg}</span>
+            <span>{checking ? 'Checking against the engine…' : statusMsg}</span>
           </div>
         )}
       </div>

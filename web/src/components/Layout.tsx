@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { api } from '../api';
-import { getActivationCode, getStoredUser, hasSession, hasUnlocked } from '../utils/activation';
+import { getActivationCode, getStoredUser, hasSession } from '../utils/activation';
 import { useAuth } from '../context/AuthContext';
 import type { HealthResponse } from '../types';
 import {
@@ -49,7 +49,7 @@ const CHAIN_LABELS: Record<string, string> = {
 
 export function Layout() {
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { signOut, loading, unlocked, isAdmin } = useAuth();
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
@@ -58,12 +58,19 @@ export function Layout() {
   const userName = user?.name || (user?.email ? user.email.split('@')[0] : 'Guest');
 
   useEffect(() => {
+    if (loading) return;
     if (!hasSession()) {
       navigate('/login', { replace: true });
-    } else if (!hasUnlocked()) {
+    } else if (!isAdmin && !unlocked) {
       navigate('/subscribe', { replace: true });
     }
-  }, [navigate]);
+  }, [loading, unlocked, isAdmin, navigate]);
+
+  useEffect(() => {
+    if (loading || (!hasSession())) return;
+    // Re-validate server-side access whenever the console mounts.
+    void api.health().catch(() => null);
+  }, [loading]);
 
   useEffect(() => {
     let alive = true;
@@ -100,6 +107,14 @@ export function Layout() {
   };
 
   const online = health?.status === 'ok';
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--mb-bg, #0b0b11)', color: 'var(--mb-muted, #6e6b8a)', fontSize: 13 }}>
+        Verifying access…
+      </div>
+    );
+  }
 
   return (
     <div className="mb-console">
@@ -197,6 +212,12 @@ export function Layout() {
 
             <div className="mb-nav-group">
               <div className="mb-nav-title">Tools & Setup</div>
+              {isAdmin && (
+                <NavLink to="/admin" className={({ isActive }) => `mb-nav-item${isActive ? ' active' : ''}`}>
+                  <IconShieldCheck size={16} />
+                  <span>Admin Console</span>
+                </NavLink>
+              )}
               {TOOLS_NAV.map(({ path, label, icon }) => (
                 <NavLink key={path} to={path} className={({ isActive }) => `mb-nav-item${isActive ? ' active' : ''}`}>
                   {icon}
@@ -211,8 +232,8 @@ export function Layout() {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, padding: '0 10px 12px' }}>
                 {health.networks.map(n => (
                   <span key={n} className="mb-badge mb-badge-gray" style={{ fontSize: 9.5 }}>
-                    <span className="mb-dot" style={{ background: 'var(--mb-green)' }} />
-                    {CHAIN_LABELS[n] ?? n}
+                    <span className="mb-dot" style={{ background: n === 'solana' ? 'var(--mb-gold, #e5b567)' : 'var(--mb-green)' }} />
+                    {CHAIN_LABELS[n] ?? n}{n === 'solana' ? ' · soon' : ''}
                   </span>
                 ))}
               </div>

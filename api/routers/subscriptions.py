@@ -6,6 +6,8 @@ from fastapi import APIRouter, Header, HTTPException, Request
 from pydantic import BaseModel
 
 from ..config import settings
+from ..services.chain import ChainService, NETWORKS
+from ..services import payments
 
 router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
 USERS_FILE = Path.home() / ".mintobaby" / "users.json"
@@ -58,12 +60,24 @@ async def create_checkout(req: CheckoutRequest, request: Request):
     if req.paymentMethod == "crypto":
         if not settings.payment_recipient:
             raise HTTPException(status_code=503, detail="Crypto payments are not configured.")
+        amount_eth = None
+        usd_quote = await payments.get_eth_usd_price()
+        if usd_quote:
+            amount_eth = f"{amount_usd / usd_quote:.6f}"
         return {
             "paymentMethod": "crypto",
             "paymentAddress": settings.payment_recipient,
             "amountUsd": amount_usd,
+            "amountEthEstimate": amount_eth,
+            "usdQuote": usd_quote,
             "network": "Robinhood Chain",
-            "instructions": f"Send ${amount_usd:.2f} in ETH or WETH to {settings.payment_recipient}, then submit the transaction hash for verification.",
+            "wethAddress": settings.weth_address,
+            "confirmations": settings.payment_confirmations,
+            "instructions": (
+                f"Send at least ${amount_usd:.2f} worth of ETH (≈ {amount_eth or '?'} ETH) or WETH "
+                f"on Robinhood Chain (4663) to {settings.payment_recipient}. "
+                f"After {settings.payment_confirmations} confirmations, submit the transaction hash for verification."
+            ),
         }
 
     try:
@@ -74,12 +88,12 @@ async def create_checkout(req: CheckoutRequest, request: Request):
         raise HTTPException(status_code=503, detail="Stripe payments are not configured on this server.")
 
     stripe.api_key = settings.stripe_secret_key
-    origin = str(request.base_url).rstrip("/")
+    origin = settings.web_url.rstrip("/")
     session = stripe.checkout.Session.create(
         mode="payment",
         line_items=[{"price_data": {"currency": "usd", "product_data": {"name": f"MintoBaby {req.plan.title()} subscription"}, "unit_amount": amount_usd * 100}, "quantity": 1}],
-        success_url=f"{origin}/subscriptions/success?session_id={{CHECKOUT_SESSION_ID}}",
-        cancel_url=f"{origin}/subscriptions/cancelled",
+        success_url=f"{origin}/subscribe?paid=1&session_id={{CHECKOUT_SESSION_ID}}",
+        cancel_url=f"{origin}/subscribe?cancelled=1",
         metadata={"plan": req.plan, "billing_cycle": req.billingCycle, "activation_code": req.activationCode.strip().upper()},
     )
     return {"paymentMethod": "stripe", "checkoutUrl": session.url, "amountUsd": amount_usd}
@@ -87,9 +101,46 @@ async def create_checkout(req: CheckoutRequest, request: Request):
 
 @router.post("/crypto/verify")
 async def verify_crypto_payment(req: CryptoVerifyRequest):
-    _require_user(req.activationCode)
+    user = _require_user(req.activationCode)
     _validate_request(req.plan, req.billingCycle, "crypto")
-    raise HTTPException(status_code=501, detail="On-chain verification provider is not configured for the web API yet.")
+    if not settings.payment_recipient:
+        raise HTTPException(status_code=503, detail="Crypto payments are not configured.")
+
+    amount_usd = PLANS[req.plan][req.billingCycle]
+    net = NETWORKS["robinhood"]
+    chain = ChainService(net["rpc"], net["chain_id"], "robinhood")
+    result = await payments.verify_subscription_payment(
+        chain,
+        tx_hash=req.txHash,
+        recipient=settings.payment_recipient,
+        required_usd=amount_usd,
+        confirmations=settings.payment_confirmations,
+        weth_address=settings.weth_address,
+        activation_code=req.activationCode.strip().upper(),
+    )
+
+    if result["status"] != "accepted":
+        code = {"pending": 425, "invalid": 402, "unavailable": 503}.get(result["status"], 400)
+        raise HTTPException(status_code=code, detail=result.get("reason", "Payment could not be verified."))
+
+    payment = result["payment"]
+    subscription = {
+        "plan": req.plan,
+        "billingCycle": req.billingCycle,
+        "active": True,
+        "paidWith": payment["asset"],
+        "amountPaidEth": f"{payment['amount_eth']:.6f}",
+        "txHash": payment["tx_hash"],
+        "activatedAt": datetime.now(timezone.utc).isoformat(),
+    }
+    user["subscription"] = subscription
+    users = json.loads(USERS_FILE.read_text(encoding="utf-8"))
+    for key, value in users.items():
+        if value.get("activation_code") == req.activationCode.strip().upper():
+            users[key] = user
+            break
+    USERS_FILE.write_text(json.dumps(users, indent=2), encoding="utf-8")
+    return {"active": True, "subscription": subscription}
 
 
 @router.post("/stripe/webhook")

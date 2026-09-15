@@ -1,67 +1,100 @@
 /**
- * AuthContext — real Google OAuth + backend session management.
- * No dummy data, no hardcoded values.
+ * AuthContext — real Google OAuth + email + admin sessions with
+ * server-authoritative access checks. No dummy data, no hardcoded values.
  */
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { api, setAdminToken } from '../api';
+import {
+  clearSession,
+  getStoredUser,
+  isAdminSession,
+  setSubscriptionCache,
+  setUnlockedHint,
+  type StoredUser,
+} from '../utils/activation';
 
 const BASE = __MINTOBABY_CONFIG__.apiUrl;
 const SESSION_KEY = 'mintobaby_session';
 
-export interface MBUser {
-  sub: string;
-  email: string;
-  name: string;
-  picture: string;
-  activation_code: string;
-}
+export type MBUser = StoredUser & { subscription?: Record<string, unknown> | null };
 
 interface AuthState {
   user: MBUser | null;
   loading: boolean;
+  unlocked: boolean;
+  isAdmin: boolean;
+  signIn: (body: { user: MBUser; token?: string }) => void;
   signInWithGoogle: (googleToken: string) => Promise<void>;
   signOut: () => void;
+  refreshAccess: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthState>({
   user: null,
   loading: true,
+  unlocked: false,
+  isAdmin: false,
+  signIn: () => {},
   signInWithGoogle: async () => {},
   signOut: () => {},
+  refreshAccess: async () => false,
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<MBUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [unlocked, setUnlocked] = useState(false);
 
-  // On mount: restore session from localStorage and verify with backend
-  useEffect(() => {
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) { setLoading(false); return; }
+  /** Ask the engine whether this account may enter the console. */
+  const refreshAccess = useCallback(async (): Promise<boolean> => {
+    const current = getStoredUser();
+    if (!current) return false;
+    if (current.isAdmin) {
+      try {
+        await api.adminSession();
+        setUnlockedHint(true);
+        setUnlocked(true);
+        return true;
+      } catch {
+        setUnlocked(false);
+        return false;
+      }
+    }
+    const code = current.activation_code?.trim();
+    if (!code) return false;
     try {
-      const parsed: MBUser = JSON.parse(raw);
-      // Re-verify with backend using the stored activation code
-      fetch(`${BASE}/auth/me?code=${encodeURIComponent(parsed.activation_code)}`)
-        .then(r => r.ok ? r.json() : null)
-        .then(data => {
-          if (data?.user) {
-            const u: MBUser = data.user;
-            setUser(u);
-            localStorage.setItem(SESSION_KEY, JSON.stringify(u));
-          } else {
-            // session invalid — clear it
-            localStorage.removeItem(SESSION_KEY);
-          }
-        })
-        .catch(() => {
-          // API offline — trust local session
-          setUser(parsed);
-        })
-        .finally(() => setLoading(false));
+      const access = await api.checkAccess(code);
+      if (access.subscription?.active) setSubscriptionCache(access.subscription);
+      setUnlockedHint(access.active);
+      setUser(prev => (prev ? { ...prev, subscription: access.subscription ?? null } : prev));
+      return access.active;
     } catch {
-      localStorage.removeItem(SESSION_KEY);
-      setLoading(false);
+      // Engine offline: fall back to the last known local state
+      const ok = getUnlockedLocal();
+      setUnlocked(ok);
+      return ok;
     }
   }, []);
+
+  useEffect(() => {
+    const stored = getStoredUser();
+    if (!stored) { setLoading(false); return; }
+    setUser(stored);
+    void (async () => {
+      await refreshAccess();
+      setLoading(false);
+    })();
+  }, [refreshAccess]);
+
+  const signIn = useCallback((body: { user: MBUser; token?: string }) => {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(body.user));
+    if (body.user.activation_code) {
+      localStorage.setItem('mintobaby_user_activation_code', body.user.activation_code);
+    }
+    if (body.token && body.user.isAdmin) setAdminToken(body.token);
+    setUser(body.user);
+    void refreshAccess();
+  }, [refreshAccess]);
 
   const signInWithGoogle = useCallback(async (googleToken: string) => {
     const res = await fetch(`${BASE}/auth/google`, {
@@ -74,23 +107,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error(err.detail ?? 'Google sign-in failed');
     }
     const data = await res.json();
-    const u: MBUser = data.user;
-    // Also sync activation code to the local activation store
-    localStorage.setItem('mintobaby_user_activation_code', u.activation_code);
-    localStorage.setItem(SESSION_KEY, JSON.stringify(u));
-    setUser(u);
-  }, []);
+    signIn(data);
+  }, [signIn]);
 
   const signOut = useCallback(() => {
-    localStorage.removeItem(SESSION_KEY);
+    clearSession();
     setUser(null);
+    setUnlocked(false);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user: user ?? null, loading, unlocked, isAdmin: user?.isAdmin === true || isAdminSession(), signIn, signInWithGoogle, signOut, refreshAccess }}>
       {children}
     </AuthContext.Provider>
   );
+}
+
+function getUnlockedLocal(): boolean {
+  try {
+    const raw = localStorage.getItem('mintobaby_subscription');
+    if (raw && JSON.parse(raw)?.active === true) return true;
+  } catch { /* ignore */ }
+  return localStorage.getItem('mintobaby_unlock_cache') === '1';
 }
 
 export function useAuth() {

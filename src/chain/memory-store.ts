@@ -19,7 +19,7 @@ export type AccessEntitlement = {
   userId: string;
   username?: string;
   status: 'active' | 'revoked';
-  source: 'payment' | 'admin';
+  source: 'payment' | 'admin' | 'activation';
   paymentId?: string;
   grantedAt: number;
   revokedAt?: number;
@@ -56,7 +56,7 @@ export interface IStore {
   isUserAllowed(userId: string): boolean;
   getAllowedUsers(): string[];
   getEntitlement?(userId: string): Promise<AccessEntitlement | undefined> | AccessEntitlement | undefined;
-  grantEntitlement?(userId: string, username: string | undefined, source: 'payment' | 'admin', paymentId?: string): Promise<void> | void;
+  grantEntitlement?(userId: string, username: string | undefined, source: 'payment' | 'admin' | 'activation', paymentId?: string): Promise<void> | void;
   revokeEntitlement?(userId: string): Promise<boolean> | boolean;
   recordUsername?(userId: string, username?: string): Promise<void> | void;
   resolveUsername?(username: string): Promise<string | undefined> | string | undefined;
@@ -264,7 +264,7 @@ export class MemoryStore implements IStore {
     return entitlement?.status === 'active' ? entitlement : undefined;
   }
 
-  grantEntitlement(userId: string, username: string | undefined, source: 'payment' | 'admin', paymentId?: string): void {
+  grantEntitlement(userId: string, username: string | undefined, source: 'payment' | 'admin' | 'activation', paymentId?: string): void {
     this.entitlements.set(userId, { userId, username, status: 'active', source, paymentId, grantedAt: Date.now() });
     if (username) this.usernames.set(username.replace(/^@/, '').toLowerCase(), userId);
     this.allowedUsers.add(userId.toLowerCase());

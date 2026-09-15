@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
+import { useAuth } from '../context/AuthContext';
 import { MintoLogo, IconArrowRight, IconBolt, IconTelegram, IconShieldCheck } from '../components/Icons';
 
 const API_BASE = __MINTOBABY_CONFIG__.apiUrl;
@@ -63,6 +64,7 @@ const inputStyle: React.CSSProperties = {
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { signIn } = useAuth();
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleError, setGoogleError] = useState('');
   const [email, setEmail] = useState('');
@@ -71,13 +73,6 @@ export default function LoginPage() {
   const [emailError, setEmailError] = useState('');
 
   const authError = googleError || emailError;
-
-  const saveSession = (user: Record<string, unknown>) => {
-    localStorage.setItem('mintobaby_session', JSON.stringify(user));
-    if (typeof user.activation_code === 'string' && user.activation_code) {
-      localStorage.setItem('mintobaby_user_activation_code', user.activation_code);
-    }
-  };
 
   const handleGoogleToken = async (token: string) => {
     setGoogleLoading(true);
@@ -88,7 +83,7 @@ export default function LoginPage() {
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.detail ?? 'Google sign-in failed.');
-      saveSession(body.user);
+      signIn(body);
       navigate('/subscribe');
     } catch (error: unknown) {
       setGoogleError(error instanceof Error ? error.message : 'Google sign-in failed.');
@@ -108,7 +103,7 @@ export default function LoginPage() {
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.detail ?? 'Sign-in failed.');
-      saveSession(body.user);
+      signIn(body);
       navigate(body.user.isAdmin ? '/dashboard' : '/subscribe');
     } catch (error: unknown) {
       setEmailError(error instanceof Error ? error.message : 'Sign-in failed.');

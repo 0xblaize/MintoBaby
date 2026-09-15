@@ -463,12 +463,12 @@ export class D1WalletStore extends MemoryStore {
 
   async getEntitlement(userId: string): Promise<AccessEntitlement | undefined> {
     await this.ensureAllTables();
-    const row = await this.db.prepare('SELECT user_id, username, status, source, payment_id, granted_at, revoked_at FROM user_entitlements WHERE user_id = ? AND status = \'active\'').bind(userId).first<{ user_id: string; username?: string | null; status: 'active' | 'revoked'; source: 'payment' | 'admin'; payment_id?: string | null; granted_at: number; revoked_at?: number | null }>();
+    const row = await this.db.prepare('SELECT user_id, username, status, source, payment_id, granted_at, revoked_at FROM user_entitlements WHERE user_id = ? AND status = \'active\'').bind(userId).first<{ user_id: string; username?: string | null; status: 'active' | 'revoked'; source: 'payment' | 'admin' | 'activation'; payment_id?: string | null; granted_at: number; revoked_at?: number | null }>();
     if (!row) return undefined;
     return { userId: row.user_id, username: row.username ?? undefined, status: row.status, source: row.source, paymentId: row.payment_id ?? undefined, grantedAt: row.granted_at, revokedAt: row.revoked_at ?? undefined };
   }
 
-  async grantEntitlement(userId: string, username: string | undefined, source: 'payment' | 'admin', paymentId?: string): Promise<void> {
+  async grantEntitlement(userId: string, username: string | undefined, source: 'payment' | 'admin' | 'activation', paymentId?: string): Promise<void> {
     const normalized = username?.replace(/^@/, '').trim().toLowerCase() || null;
     const now = Date.now();
     await this.ensureAllTables();
@@ -490,7 +490,7 @@ export class D1WalletStore extends MemoryStore {
 
   async listEntitlements(): Promise<AccessEntitlement[]> {
     await this.ensureAllTables();
-    const rows = (await this.db.prepare('SELECT user_id, username, status, source, payment_id, granted_at, revoked_at FROM user_entitlements ORDER BY granted_at DESC').bind().all<{ user_id: string; username?: string | null; status: 'active' | 'revoked'; source: 'payment' | 'admin'; payment_id?: string | null; granted_at: number; revoked_at?: number | null }>()).results ?? [];
+    const rows = (await this.db.prepare('SELECT user_id, username, status, source, payment_id, granted_at, revoked_at FROM user_entitlements ORDER BY granted_at DESC').bind().all<{ user_id: string; username?: string | null; status: 'active' | 'revoked'; source: 'payment' | 'admin' | 'activation'; payment_id?: string | null; granted_at: number; revoked_at?: number | null }>()).results ?? [];
     return rows.map((row) => ({ userId: row.user_id, username: row.username ?? undefined, status: row.status, source: row.source, paymentId: row.payment_id ?? undefined, grantedAt: row.granted_at, revokedAt: row.revoked_at ?? undefined }));
   }
 
